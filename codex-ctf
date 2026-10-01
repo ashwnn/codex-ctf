@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# One-command entry point to the native Codex terminal UI.
+set -euo pipefail
+CTF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CTF_WORKSPACE="$CTF_ROOT/workspaces/default"
+if [ ! -d "$CTF_WORKSPACE" ]; then
+  "$CTF_ROOT/bin/ctf-codex" init default >/dev/null
+fi
+exec "$CTF_ROOT/bin/ctf-codex" team --workspace "$CTF_WORKSPACE" "$@"
