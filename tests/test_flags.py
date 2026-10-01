@@ -181,6 +181,15 @@ class HTTPTests(unittest.TestCase):
         self.response = (200, {"results": [{"flag": "SYNTHETIC", "status": "UNMAPPED"}]})
         self.assertEqual(http.run(self.payload, self.config)["results"][0]["status"], "uncertain")
 
+    def test_plain_http_public_host_is_rejected(self):
+        self.config["url"] = "http://example.com/submit"
+        with self.assertRaises(ValueError):
+            http.run(self.payload, self.config)
+        self.assertTrue(http._private_plain_http("127.0.0.1"))
+        self.assertTrue(http._private_plain_http("10.0.0.5"))
+        self.assertTrue(http._private_plain_http("localhost"))
+        self.assertFalse(http._private_plain_http("example.com"))
+
 
 if __name__ == "__main__":
     unittest.main()

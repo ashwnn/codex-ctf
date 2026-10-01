@@ -8,6 +8,7 @@ Reads flags/submission.json (or CTF_SUBMISSION_CONFIG) locally. Contract:
 POSTs a list of flag strings; expects per-flag receipts with mapped statuses.
 Use a custom adapter if the real event uses any other request/response contract.
 """
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -24,6 +25,17 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def _private_plain_http(hostname):
+    # Plain HTTP is only acceptable for a loopback or private-network literal.
+    if hostname == "localhost":
+        return True
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_private or address.is_link_local
+
+
 def run(payload, config):
     entries = payload["flags"]
     flags = {e["flag"]: e["id"] for e in entries}
@@ -31,8 +43,9 @@ def run(payload, config):
         raise ValueError("Duplicate batch")
     url = urllib.parse.urlsplit(config["url"])
     if url.scheme != "https" and not (
-            url.scheme == "http" and config.get("allow_plain_http") is True):
-        raise ValueError("Plain HTTP requires explicit private-network opt-in")
+            url.scheme == "http" and config.get("allow_plain_http") is True
+            and _private_plain_http(url.hostname or "")):
+        raise ValueError("Plain HTTP requires a loopback/private-network host opt-in")
     if not url.hostname or url.username or url.password or url.fragment:
         raise ValueError("Invalid endpoint")
     headers = {"Content-Type": "application/json"}

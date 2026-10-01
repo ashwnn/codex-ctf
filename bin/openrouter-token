@@ -19,4 +19,5 @@ if [ "$CTF_MODE" != 600 ]; then
   printf 'The OpenRouter key file must have mode 0600.\n' >&2
   exit 1
 fi
-cat "$CTF_KEY_FILE"
+# Strip any trailing newline so the bearer token matches the env-var path.
+printf '%s' "$(cat "$CTF_KEY_FILE")"

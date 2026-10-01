@@ -133,7 +133,8 @@ def submit(db, adapter, signal, batch_size=25, max_batches=100, delay=1,
     # Snapshot the pending IDs: producers can keep importing; later arrivals hold.
     cutoff = time.time()
     expire(db, cutoff)
-    queue_limit = batch_size * max_batches
+    # Absolute cap keeps a large --batch-size/--max-batches product bounded.
+    queue_limit = min(batch_size * max_batches, 50000)
     ids = [r[0] for r in db.execute("SELECT id FROM flags WHERE state='pending' AND expires>? "
                                     "ORDER BY expires,id LIMIT ?", (cutoff + margin, queue_limit))]
     batches = sent = 0

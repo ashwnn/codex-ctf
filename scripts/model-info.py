@@ -24,10 +24,17 @@ def key():
     return value
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def request(path, token):
+    # Never forward the bearer token through a system proxy or a redirect.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
     req = urllib.request.Request("https://openrouter.ai/api/v1" + path,
                                  headers={"Authorization": "Bearer " + token})
-    with urllib.request.urlopen(req, timeout=30) as response:
+    with opener.open(req, timeout=30) as response:
         return json.load(response)
 
 

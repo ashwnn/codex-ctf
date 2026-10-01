@@ -70,6 +70,8 @@ def index(capture, port, output, max_packets, tshark=None):
 
 
 def main():
+    # Derived evidence is private; keep intermediate dirs/files owner-only too.
+    os.umask(0o077)
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("capture", type=Path)
     p.add_argument("--port", type=int, required=True)
