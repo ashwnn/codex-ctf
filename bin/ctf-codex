@@ -4,6 +4,8 @@ set -euo pipefail
 umask 077
 CTF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CTF_HOME="$CTF_ROOT/.runtime/codex"
+CTF_PROFILES="team cheap audit traffic patch deepseek-cheap deepseek-audit"
+CTF_SYSTEM_SKILLS="imagegen openai-docs skill-creator skill-installer"
 
 fail() { printf 'ctf-codex: %s\n' "$*" >&2; exit 2; }
 toml_escape() {
@@ -15,8 +17,14 @@ toml_escape() {
   CTF_VALUE="${CTF_VALUE//$'\t'/\\t}"
   printf '%s' "$CTF_VALUE"
 }
+# The default model is single-sourced from the canonical base config.
+default_model() {
+  sed -n 's/^model[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' \
+    "$CTF_ROOT/config/codex/config.toml" | head -n 1
+}
 require_codex() {
   command -v codex >/dev/null || fail 'Install Codex CLI >= 0.159.2.'
+  local CTF_VERSION_OUTPUT CTF_MAJOR CTF_MINOR CTF_PATCH
   CTF_VERSION_OUTPUT="$(codex --version 2>/dev/null)" || fail 'Could not read Codex CLI version.'
   if [[ ! "$CTF_VERSION_OUTPUT" =~ ([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
     fail "Could not parse Codex CLI version: $CTF_VERSION_OUTPUT"
@@ -29,46 +37,75 @@ require_codex() {
     fail "Codex CLI >= 0.159.2 is required; found $CTF_VERSION_OUTPUT."
   fi
 }
+# Project-local .codex/config.toml is loaded for trusted projects, and a
+# workspace inherits the repository root's trust. Untrusted challenge source is
+# agent-writable there, so drop any planted project config before every launch.
+sanitize_project_config() {
+  local CTF_DIR="$1"
+  [ -n "$CTF_DIR" ] && [ -d "$CTF_DIR/.codex" ] || return 0
+  rm -rf "$CTF_DIR/.codex"
+}
+write_config() {
+  # Atomic install so a concurrent Codex process never reads a partial config.
+  local CTF_DEST="$1" CTF_TMP
+  CTF_TMP="$CTF_DEST.tmp.$$"
+  cat > "$CTF_TMP"
+  chmod 600 "$CTF_TMP"
+  mv -f "$CTF_TMP" "$CTF_DEST"
+}
 setup() {
   require_codex
   mkdir -p "$CTF_HOME/skills" "$CTF_HOME/agents" "$CTF_HOME/prompts"
   chmod 700 "$CTF_ROOT/.runtime" "$CTF_HOME"
-  for CTF_PROFILE_FILE_NAME in team cheap audit traffic patch deepseek-cheap deepseek-audit; do
-    rm -f "$CTF_HOME/$CTF_PROFILE_FILE_NAME.config.toml"
-  done
+  local CTF_CONFIG CTF_TMP CTF_SKILL_DIR CTF_SKILL CTF_SKILL_TOML
+  local CTF_TOML_ROOT CTF_SED_ROOT CTF_ENTRY
   CTF_TOML_ROOT="$(toml_escape "$CTF_ROOT")"
   CTF_SED_ROOT="$(printf '%s' "$CTF_TOML_ROOT" | sed 's/[&|\\]/\\&/g')"
-  for CTF_CONFIG in "$CTF_ROOT"/config/codex/*.toml; do
-    sed "s|@CTF_ROOT@|$CTF_SED_ROOT|g" "$CTF_CONFIG" > "$CTF_HOME/$(basename "$CTF_CONFIG")"
+  # Base user config plus native per-skill overrides that suppress unrelated
+  # personal and bundled skills. CODEX_HOME alone does not hide ~/.agents/skills.
+  {
+    sed "s|@CTF_ROOT@|$CTF_SED_ROOT|g" "$CTF_ROOT/config/codex/config.toml"
+    for CTF_SKILL in "$HOME"/.agents/skills/*/SKILL.md; do
+      [ -f "$CTF_SKILL" ] || continue
+      CTF_SKILL_TOML="$(toml_escape "$CTF_SKILL")"
+      printf '\n[[skills.config]]\npath = "%s"\nenabled = false\n' "$CTF_SKILL_TOML"
+    done
+    for CTF_SKILL in $CTF_SYSTEM_SKILLS; do
+      CTF_SKILL_TOML="$(toml_escape "$CTF_HOME/skills/.system/$CTF_SKILL/SKILL.md")"
+      printf '\n[[skills.config]]\npath = "%s"\nenabled = false\n' "$CTF_SKILL_TOML"
+    done
+    # This launcher configures the repository and workspaces the user requested.
+    printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "$CTF_TOML_ROOT"
+  } | write_config "$CTF_HOME/config.toml"
+  # Profile files are fully generated; rewrite from scratch and drop stale ones.
+  for CTF_CONFIG in "$CTF_HOME"/*.config.toml; do
+    [ -e "$CTF_CONFIG" ] || continue
+    rm -f "$CTF_CONFIG"
   done
-  chmod 600 "$CTF_HOME"/*.toml
+  for CTF_CONFIG in "$CTF_ROOT"/config/codex/*.config.toml; do
+    [ -e "$CTF_CONFIG" ] || continue
+    sed "s|@CTF_ROOT@|$CTF_SED_ROOT|g" "$CTF_CONFIG" | write_config "$CTF_HOME/$(basename "$CTF_CONFIG")"
+  done
   # Remove only generated CTF assets so deleted source files cannot linger.
-  for CTF_SKILL_DEST in "$CTF_HOME"/skills/ad-ctf-*; do
-    [ -d "$CTF_SKILL_DEST" ] || continue
-    rm -rf "$CTF_SKILL_DEST"
+  for CTF_SKILL_DIR in "$CTF_HOME"/skills/ad-ctf-*; do
+    [ -d "$CTF_SKILL_DIR" ] || continue
+    rm -rf "$CTF_SKILL_DIR"
   done
-  for CTF_AGENT_DEST in "$CTF_HOME"/agents/ctf-*.toml; do
-    [ -f "$CTF_AGENT_DEST" ] || continue
-    rm -f "$CTF_AGENT_DEST"
+  for CTF_ENTRY in "$CTF_HOME"/agents/ctf-*.toml; do
+    [ -f "$CTF_ENTRY" ] || continue
+    rm -f "$CTF_ENTRY"
   done
   for CTF_SKILL_DIR in "$CTF_ROOT"/skills/ad-ctf-*; do
     cp -R "$CTF_SKILL_DIR" "$CTF_HOME/skills/"
   done
   cp "$CTF_ROOT"/config/agents/*.toml "$CTF_HOME/agents/"
-  cp "$CTF_ROOT"/prompts/brrr.md "$CTF_HOME/prompts/brrr.md"
-  # Native per-skill overrides suppress unrelated personal and bundled skills.
-  # CODEX_HOME alone does not suppress ~/.agents/skills discovery.
-  for CTF_SKILL in "$HOME"/.agents/skills/*/SKILL.md; do
-    [ -f "$CTF_SKILL" ] || continue
-    CTF_SKILL_TOML="$(toml_escape "$CTF_SKILL")"
-    printf '\n[[skills.config]]\npath = "%s"\nenabled = false\n' "$CTF_SKILL_TOML" >> "$CTF_HOME/config.toml"
+  # Install the native custom prompts so /prompts:<name> works in the TUI.
+  cp "$CTF_ROOT"/prompts/*.md "$CTF_HOME/prompts/"
+  # Drop project config an agent may have planted in an agent-writable workspace.
+  for CTF_ENTRY in "$CTF_ROOT"/workspaces/*; do
+    [ -d "$CTF_ENTRY" ] || continue
+    sanitize_project_config "$CTF_ENTRY"
   done
-  for CTF_SKILL in imagegen openai-docs skill-creator skill-installer; do
-    CTF_SKILL_TOML="$(toml_escape "$CTF_HOME/skills/.system/$CTF_SKILL/SKILL.md")"
-    printf '\n[[skills.config]]\npath = "%s"\nenabled = false\n' "$CTF_SKILL_TOML" >> "$CTF_HOME/config.toml"
-  done
-  # This launcher configures the repository and workspaces the user requested.
-  printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "$CTF_TOML_ROOT" >> "$CTF_HOME/config.toml"
 }
 usage() {
   cat <<'EOF'
@@ -77,7 +114,9 @@ Usage: bin/ctf-codex setup | doctor | models [MODEL] | init SERVICE | smoke
 Options: --workspace DIR --profile NAME --model VENDOR/MODEL --exec --json
          --output FILE --effort low|medium|high|xhigh|max --network
 Profiles: team, cheap, audit, traffic, patch, deepseek-cheap, deepseek-audit
-`brrr` is a native Codex team surge (up to 20 agents). In the TUI use /prompts:brrr.
+`run` is a raw single-agent launch of the cheap profile with no workflow prompt.
+`brrr` is a native Codex team surge (up to 20 agents).
+In the TUI use /prompts:audit, /prompts:traffic, /prompts:patch, /prompts:team or /prompts:brrr.
 No phase gates. No agent loop in this script. Personal Codex config is untouched.
 EOF
 }
@@ -99,30 +138,61 @@ case "$CTF_COMMAND" in
   setup) setup; printf 'Installed isolated config and skills: %s\n' "$CTF_HOME"; exit 0 ;;
   doctor)
     setup
-    codex --version
+    env CODEX_HOME="$CTF_HOME" codex --version
     mkdir -p "$CTF_ROOT/.runtime/validation"
-    for CTF_PROFILE in team cheap audit traffic patch deepseek-cheap deepseek-audit; do
-      env CODEX_HOME="$CTF_HOME" codex --profile "$CTF_PROFILE" debug prompt-input 'Validate native prompt and skill discovery; no inference.' \
-        > "$CTF_ROOT/.runtime/validation/$CTF_PROFILE.json" \
-        2> "$CTF_ROOT/.runtime/validation/$CTF_PROFILE.stderr"
-      if [ -s "$CTF_ROOT/.runtime/validation/$CTF_PROFILE.stderr" ]; then
-        cat "$CTF_ROOT/.runtime/validation/$CTF_PROFILE.stderr" >&2
-        fail "Profile $CTF_PROFILE has native validation warnings."
-      fi
-      printf '%s: native config/prompt OK\n' "$CTF_PROFILE"
+    # Strict config validation with inference impossible (auth is forced to fail).
+    for CTF_PROFILE in $CTF_PROFILES; do
+      CTF_OUT="$(env CODEX_HOME="$CTF_HOME" codex --strict-config --profile "$CTF_PROFILE" exec \
+        --skip-git-repo-check --sandbox read-only \
+        -c 'model_providers.openrouter.auth.command="/bin/false"' \
+        'Configuration validation only.' 2>&1)" || true
+      case "$CTF_OUT" in
+        *'Error loading config.toml'*)
+          printf '%s\n' "$CTF_OUT" >&2
+          fail "Profile $CTF_PROFILE has invalid configuration." ;;
+      esac
+      printf '%s: strict-config OK\n' "$CTF_PROFILE"
     done
+    # Native prompt and skill discovery, no inference.
+    for CTF_PROFILE in $CTF_PROFILES; do
+      if ! env CODEX_HOME="$CTF_HOME" codex --profile "$CTF_PROFILE" debug prompt-input \
+          'Validate native prompt and skill discovery; no inference.' \
+          > "$CTF_ROOT/.runtime/validation/$CTF_PROFILE.json" \
+          2> "$CTF_ROOT/.runtime/validation/$CTF_PROFILE.stderr"; then
+        cat "$CTF_ROOT/.runtime/validation/$CTF_PROFILE.stderr" >&2
+        fail "Profile $CTF_PROFILE failed native prompt construction."
+      fi
+      printf '%s: native prompt/skill discovery OK\n' "$CTF_PROFILE"
+    done
+    # Managed assets must match their sources exactly.
+    CTF_EXPECTED_AGENTS="$(find "$CTF_ROOT/config/agents" -maxdepth 1 -name '*.toml' 2>/dev/null | wc -l | tr -d ' ')"
+    CTF_INSTALLED_AGENTS="$(find "$CTF_HOME/agents" -maxdepth 1 -name 'ctf-*.toml' 2>/dev/null | wc -l | tr -d ' ')"
+    [ "$CTF_EXPECTED_AGENTS" = "$CTF_INSTALLED_AGENTS" ] || fail "Installed agents ($CTF_INSTALLED_AGENTS) do not match source ($CTF_EXPECTED_AGENTS)."
+    CTF_EXPECTED_SKILLS="$(find "$CTF_ROOT/skills" -maxdepth 1 -type d -name 'ad-ctf-*' 2>/dev/null | wc -l | tr -d ' ')"
+    CTF_INSTALLED_SKILLS="$(find "$CTF_HOME/skills" -maxdepth 1 -type d -name 'ad-ctf-*' 2>/dev/null | wc -l | tr -d ' ')"
+    [ "$CTF_EXPECTED_SKILLS" = "$CTF_INSTALLED_SKILLS" ] || fail "Installed skills ($CTF_INSTALLED_SKILLS) do not match source ($CTF_EXPECTED_SKILLS)."
+    printf 'Managed assets: %s agents, %s skills\n' "$CTF_INSTALLED_AGENTS" "$CTF_INSTALLED_SKILLS"
+    # Native environment diagnosis (informational; platform-specific warnings allowed).
+    env CODEX_HOME="$CTF_HOME" codex doctor --no-color --summary || \
+      printf 'ctf-codex: native doctor reported warnings; review above.\n' >&2
     for CTF_TOOL in docker tshark capinfos rg git; do
       command -v "$CTF_TOOL" || printf '%s: optional tool unavailable\n' "$CTF_TOOL"
     done
-    printf 'No model inference performed; catalog metadata may be fetched. Runtime uses --strict-config. Live check: bin/ctf-codex smoke\n'; exit 0 ;;
-  models) exec python3 "$CTF_ROOT/scripts/model-info.py" "$@" ;;
+    printf 'No model inference performed. Live check: bin/ctf-codex smoke\n'; exit 0 ;;
+  models)
+    if [ "$#" -eq 0 ]; then
+      set -- "$(default_model)"
+    fi
+    exec python3 "$CTF_ROOT/scripts/model-info.py" "$@" ;;
   smoke)
     mkdir -p "$CTF_ROOT/.runtime/smoke"
     printf 'CTF_SMOKE_LOCAL_FILE_OK\n' > "$CTF_ROOT/.runtime/smoke/probe.txt"
     rm -f "$CTF_ROOT/.runtime/smoke/verified.txt" "$CTF_ROOT/.runtime/smoke/answer.txt"
-    "$0" run --workspace "$CTF_ROOT/.runtime/smoke" --exec --output "$CTF_ROOT/.runtime/smoke/answer.txt" \
+    "$CTF_ROOT/bin/ctf-codex" run --workspace "$CTF_ROOT/.runtime/smoke" --exec \
+      --output "$CTF_ROOT/.runtime/smoke/answer.txt" \
       'Use the shell tool to read probe.txt. Use apply_patch to create verified.txt containing exactly CTF_SMOKE_LOCAL_FILE_OK followed by a newline. Read verified.txt with the shell tool. Reply exactly CTF_SMOKE_OK. Do not inspect other files or run other commands.'
-    cmp "$CTF_ROOT/.runtime/smoke/probe.txt" "$CTF_ROOT/.runtime/smoke/verified.txt"
+    cmp -s "$CTF_ROOT/.runtime/smoke/probe.txt" "$CTF_ROOT/.runtime/smoke/verified.txt" || \
+      fail 'Smoke did not reproduce the local file content.'
     [ "$(cat "$CTF_ROOT/.runtime/smoke/answer.txt")" = 'CTF_SMOKE_OK' ] || fail 'Smoke final answer mismatch.'
     printf 'Verified OpenRouter inference, shell, apply_patch and tool-result replay.\n'; exit 0 ;;
   team|brrr|run|audit|traffic|patch) ;;
@@ -138,6 +208,7 @@ CTF_NETWORK=false
 CTF_OUTPUT=''
 CTF_MODEL=''
 CTF_EFFORT=''
+CTF_PROFILE_GIVEN=false
 CTF_PROMPT=''
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -145,7 +216,7 @@ while [ "$#" -gt 0 ]; do
       [ "$#" -ge 2 ] || fail "Missing value for $1"
       case "$1" in
         --workspace) CTF_WORKSPACE="$2" ;;
-        --profile) CTF_PROFILE="$2" ;;
+        --profile) CTF_PROFILE="$2"; CTF_PROFILE_GIVEN=true ;;
         --output) CTF_OUTPUT="$2" ;;
         --model) CTF_MODEL="$2" ;;
         --effort) CTF_EFFORT="$2" ;;
@@ -159,10 +230,13 @@ while [ "$#" -gt 0 ]; do
     *) CTF_PROMPT="$*"; break ;;
   esac
 done
-[ "$CTF_COMMAND" != brrr ] || CTF_PROFILE=team
+[ "$CTF_COMMAND" != brrr ] || {
+  [ "$CTF_PROFILE_GIVEN" = false ] || printf 'ctf-codex: brrr always runs the team profile; ignoring --profile.\n' >&2
+  CTF_PROFILE=team
+}
 case "$CTF_PROFILE" in team|cheap|audit|traffic|patch|deepseek-cheap|deepseek-audit) ;; *) fail 'Unknown profile.' ;; esac
 if [ ! -d "$CTF_WORKSPACE" ] && [ "$CTF_WORKSPACE" = "$CTF_ROOT/workspaces/default" ]; then
-  "$0" init default >/dev/null
+  "$CTF_ROOT/bin/ctf-codex" init default >/dev/null
 fi
 [ -d "$CTF_WORKSPACE" ] || fail 'Workspace does not exist; use init or --workspace.'
 if [ -n "$CTF_EFFORT" ]; then
@@ -182,6 +256,7 @@ $CTF_PROMPT"
 fi
 setup
 "$CTF_ROOT/bin/openrouter-token" >/dev/null || fail 'OpenRouter credential unavailable.'
+sanitize_project_config "$CTF_WORKSPACE"
 CTF_ARGS=(--no-daemon --strict-config --cd "$CTF_WORKSPACE" --profile "$CTF_PROFILE"
   -c 'model_provider="openrouter"' -c 'model_providers.openrouter.base_url="https://openrouter.ai/api/v1"')
 if [ "$CTF_COMMAND" = team ] || [ "$CTF_COMMAND" = brrr ]; then

@@ -188,6 +188,75 @@ printf 'HOME=%s\\nOPENAI=%s\\nCODEX_KEY=%s\\n' "$CODEX_HOME" "${OPENAI_API_KEY:-
         result = subprocess.run([str(helper)], env=self.env, capture_output=True, text=True)
         self.assertEqual(result.stdout, "synthetic-file-key")
 
+    def test_private_key_file_newline_is_stripped(self):
+        self.env.pop("OPENROUTER_API_KEY")
+        key = self.root / ".runtime/secrets/openrouter.key"
+        key.parent.mkdir(parents=True)
+        key.write_text("synthetic-newline-key\n")
+        key.chmod(0o600)
+        result = subprocess.run([str(self.root / "bin/openrouter-token")], env=self.env,
+                                capture_output=True, text=True)
+        self.assertEqual(result.stdout, "synthetic-newline-key")
+
+    def test_root_entrypoint_passes_through_help_and_subcommands(self):
+        launcher = self.root / "codex-ctf"
+        help_result = subprocess.run([str(launcher), "--help"], env=self.env,
+                                     capture_output=True, text=True)
+        self.assertEqual(help_result.returncode, 0, help_result.stderr)
+        self.assertIn("Usage:", help_result.stdout)
+        self.assertFalse(self.capture.exists())
+        init_result = subprocess.run([str(launcher), "init", "demo"], env=self.env,
+                                     capture_output=True, text=True)
+        self.assertEqual(init_result.returncode, 0, init_result.stderr)
+        self.assertTrue((self.root / "workspaces/demo/service.toml").exists())
+        self.assertFalse(self.capture.exists())
+
+    def test_models_defaults_to_configured_model_and_forwards_arguments(self):
+        stub = self.root / "scripts/model-info.py"
+        stub.parent.mkdir(parents=True, exist_ok=True)
+        stub.write_text("import sys\nprint('MODEL=' + ','.join(sys.argv[1:]))\n")
+        default = self.run_cli("models")
+        self.assertEqual(default.returncode, 0, default.stderr)
+        self.assertEqual(default.stdout.strip(), "MODEL=stealth/space-bunny-alpha")
+        explicit = self.run_cli("models", "deepseek/deepseek-v4.1-flash")
+        self.assertEqual(explicit.stdout.strip(), "MODEL=deepseek/deepseek-v4.1-flash")
+
+    def test_brrr_warns_when_an_explicit_profile_is_ignored(self):
+        result = self.run_cli("brrr", "--profile", "deepseek-audit", "Surge")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("ignoring --profile", result.stderr)
+        self.assertIn("--profile\nteam", self.capture.read_text())
+
+    def test_launch_removes_planted_workspace_project_config(self):
+        self.run_cli("init", "svc")
+        planted = self.root / "workspaces/svc/.codex/config.toml"
+        planted.parent.mkdir(parents=True)
+        planted.write_text('model = "injected-model"\n')
+        result = self.run_cli("run", "--workspace", str(self.root / "workspaces/svc"), "go")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(planted.parent.exists())
+
+    def test_setup_is_idempotent_with_single_trust_and_managed_counts(self):
+        self.run_cli("setup")
+        config = self.root / ".runtime/codex/config.toml"
+        self.run_cli("setup")
+        text = config.read_text()
+        self.assertEqual(text.count('[projects."'), 1)
+        self.assertEqual(text.count("[[skills.config]]"), 4)
+        self.assertEqual(len(list((self.root / ".runtime/codex").glob("*.config.toml"))), 7)
+        self.assertTrue(text.endswith("\n"))
+
+    def test_setup_disables_host_agent_skills_and_installs_all_prompts(self):
+        host_skill = self.root / "personal/.agents/skills/host-tool/SKILL.md"
+        host_skill.parent.mkdir(parents=True)
+        host_skill.write_text("---\nname: host-tool\ndescription: x\n---\n")
+        self.assertEqual(self.run_cli("setup").returncode, 0)
+        text = (self.root / ".runtime/codex/config.toml").read_text()
+        self.assertIn("host-tool/SKILL.md", text)
+        self.assertEqual(text.count("[[skills.config]]"), 5)
+        for prompt in ("brrr", "team", "audit", "traffic", "patch"):
+            self.assertTrue((self.root / f".runtime/codex/prompts/{prompt}.md").exists())
+
 
 def udp_packet(port, payload):
     ethernet = bytes.fromhex("00112233445566778899aabb0800")
