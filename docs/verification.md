@@ -53,3 +53,39 @@ fallback is configured.
 - No live service, published target list, event API contract, checker or PCAP
   has been supplied. PoC efficacy, actual twenty-worker scaling and flag
   submission remain unverified until an authorized event workspace is available.
+
+# Configuration validation and skill expansion — October 1, 2026
+
+Re-verified against the installed `codex-cli 0.159.3` (repository floor 0.159.2);
+the previously installed 0.157.1 was below the floor and could not run `setup`.
+No OpenRouter key was present in this checkout, so no live inference was run.
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit tests | `python3 -m unittest discover -s tests -v` | 33 tests, 32 passed, 1 skipped (`tshark` absent) |
+| Shell syntax | `bash -n bin/ctf-codex codex-ctf bin/openrouter-token` | clean |
+| Python syntax | `ast.parse` on all four scripts | clean |
+| Strict config | `bin/ctf-codex doctor` | strict-config OK for all 7 profiles, no inference |
+| Prompt/skill discovery | `bin/ctf-codex doctor` | all 7 profiles OK; 15 skills and 12 agents discovered |
+| Native environment | `codex doctor --summary` | 20 ok, 1 idle, 0 warn, 0 fail |
+| Managed assets | `bin/ctf-codex doctor` | installed counts equal source counts |
+| New skills | `debug prompt-input` validation JSON | `ad-ctf-binary-exploitation` and `ad-ctf-crypto-analysis` present |
+| Custom prompts | files under `.runtime/codex/prompts/` | `team`, `audit`, `traffic`, `patch`, `brrr` installed |
+
+Direct evidence gathered during this pass:
+
+- `codex --strict-config exec` with a deliberately bogus top-level key exits 1
+  with `Error loading config.toml: ... unknown configuration field`; native
+  `codex --strict-config doctor` only warns. `doctor` therefore uses the exec
+  path with the provider auth forced to `/bin/false` so no inference occurs.
+- A trusted project's `.codex/config.toml` overrides the base model (observed
+  `model: project-injected-model`), and a workspace inherits the root's trust;
+  marking the root untrusted suppresses `AGENTS.md`, so the launcher instead
+  removes planted project config under the workspaces before each launch.
+- `untrusted` trust level does not prompt during non-interactive `exec` but does
+  suppress `AGENTS.md`, confirming it is not a usable blanket setting here.
+
+Remaining gaps: no OpenRouter key was available, so `models` and `smoke` (live
+inference, shell, apply_patch and tool-result replay) were not re-run in this
+pass; the TUI `/prompts:` picker was not exercised interactively. Codex `doctor`
+was run on Linux only.

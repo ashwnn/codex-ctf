@@ -108,3 +108,54 @@ model actually work across tool turns. Catalog listing alone is insufficient.
   `/api/v1/key` reads; credential and private account details remain local.
 - Installed `codex-cli 0.159.2`: help, prompt construction, catalog metadata and
   a successful native tool loop through OpenRouter.
+
+## Configuration hardening and skill coverage — October 1, 2026
+
+Re-validated against the installed `codex-cli 0.159.3` (the repository floor is
+0.159.2). No provider fallback, phase gate or eligibility rule was added.
+
+- **Strict config in `doctor`.** The native `codex doctor` command loads config
+  but does not enforce `--strict-config` (verified: a bogus key produced only a
+  warning). `doctor` now runs `codex --strict-config exec` with the provider auth
+  command forced to `/bin/false`, so the config is validated strictly and no
+  inference can occur; an unknown key surfaces as `Error loading config.toml`.
+- **Native environment report.** `doctor` also runs `codex doctor --summary`
+  (config, sandbox, auth, reachability) and compares installed agent/skill counts
+  against their sources.
+- **Atomic generation.** Generated `config.toml` and profile files are written
+  to a temporary path and moved into place, so a concurrent Codex process never
+  reads a partial strict config. `codex-ctf` passes tooling subcommands through
+  instead of turning them into a team prompt.
+- **Project-config sanitization.** A workspace inherits trust from the repository
+  root, and a trusted project's `.codex/config.toml` is loaded (verified: a
+  planted `model = "project-injected-model"` took effect, and `AGENTS.md` only
+  loads for a trusted project). Because untrusted challenge source is
+  agent-writable in a workspace, `setup` and each launch remove any
+  project-local `.codex/config.toml` under the workspaces before starting Codex.
+- **Native custom prompts.** `/prompts:<name>` remains supported in 0.159.3 (the
+  TUI still ships a custom-prompt picker). `setup` now installs `team`, `audit`,
+  `traffic`, `patch` and `brrr` so each native prompt is available in the TUI,
+  not only through the launcher.
+- **Single-sourced default.** `bin/ctf-codex models` reads the default slug from
+  `config/codex/config.toml` instead of a hard-coded copy.
+- **Two added skills.** `ad-ctf-binary-exploitation` (native-service corruption
+  and reverse-engineering triage) and `ad-ctf-crypto-analysis` (crypto/protocol
+  weakness triage, bounded oracles, synthetic reproduction) fill the gap between
+  the web/application audit skills and real A/D service categories. The audit
+  skill and the workspace template cross-reference them.
+- **Tooling hardening.** `openrouter-token` strips a trailing newline;
+  `model-info.py` disables system proxies and redirects before sending the bearer
+  token; `pcap-index.py` sets a private umask; the flag ledger caps the queue at
+  50,000; `submit-http.py` restricts plain HTTP to loopback/private hosts; and
+  `.gitignore` covers root-level `flags/`, `coordination/` and SQLite sidecars.
+
+Feature keys were checked against the 0.159.3 feature registry: all eleven
+`[features]` entries exist and are stable; `memories=false` duplicates the
+default; `browser_use`/`computer_use` are requirements-only gates. `multi_agent`
+plus `[agents] enabled` / `max_concurrent_threads_per_session` remains the correct
+native way to gate subagents; `multi_agent_v2` is not required.
+
+Sources re-checked October 1, 2026: the installed `codex-cli 0.159.3` binary and
+its `features list`, `doctor`, `debug prompt-input` and strict-config paths;
+[Codex config reference](https://developers.openai.com/codex/config-file/config-reference)
+and [custom prompts](https://developers.openai.com/codex/custom-prompts).

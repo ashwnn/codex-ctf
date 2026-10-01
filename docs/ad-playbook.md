@@ -41,8 +41,8 @@ four PoC developers, two PoC testers and seven attack workers. Attack workers
 receive disjoint service/team shards, a validated PoC revision, the published
 proxy and flag-ID window, and shared traffic bounds. The command prioritizes
 offense while retaining flagkeeper and critical checker uptime ownership. It
-does not authorize flag submission. A bare `/brrr` is not a documented CLI
-custom command; custom prompts appear under `/prompts:<name>`.
+does not authorize flag submission. `setup` installs the native prompts
+`team`, `audit`, `traffic`, `patch` and `brrr`, available as `/prompts:<name>`.
 
 ## Work sequence
 
@@ -57,7 +57,9 @@ custom command; custom prompts appear under `/prompts:<name>`.
 3. **Trace** a candidate from attacker input through parsing, identity and
    object authorization to flag storage or a checker-impacting effect. Review
    normal and alternate representations. Save exact file/line evidence and
-   confidence in the shared finding record.
+   confidence in the shared finding record. For a native binary continue with
+   `$ad-ctf-binary-exploitation`; for a crypto or protocol service continue with
+   `$ad-ctf-crypto-analysis`; both keep the same finding ID.
 4. **Reproduce** on a private copy with synthetic flags. PoC test checks a
    negative control and normal checker flow. A published NOP target can test
    the network path only after the designated service proxy and scope are
