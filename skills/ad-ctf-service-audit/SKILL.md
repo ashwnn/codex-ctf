@@ -37,7 +37,7 @@ Snapshot deployed revision, effective config, listeners, image/binary hashes, pr
 - **Native binary:** message framing, width and signedness, overflow before bounds check, truncation, off-by-one, format strings, use-after-free/double free, uninitialized data, partial reads, ownership across error paths, architecture and mitigations. Disassemble relevant paths and test bounded cases locally. A crash or missing mitigation alone does not establish flag access.
 - **Deployment and supply chain:** resolved runtime and transitive versions, image packages/bundled libraries, relevant advisory and patch/backport, reachable vulnerable API and prerequisites, default credentials, flag/secret mounts, permissions, container capabilities, host socket, exposed listeners, and proxy rules. An old library or scanner finding alone is not a confirmed vulnerability.
 
-Use [audit-lenses.md](references/audit-lenses.md) for deeper probes when a relevant stack or lead warrants them. Prioritize cross-cutting trust boundaries and flag paths rather than exhaustive keyword output.
+Use [audit-lenses.md](references/audit-lenses.md) for deeper probes when a relevant stack or lead warrants them. Prioritize cross-cutting trust boundaries and flag paths rather than exhaustive keyword output. For a native service binary continue with `$ad-ctf-binary-exploitation`; for a crypto or protocol service continue with `$ad-ctf-crypto-analysis`; both keep the same finding ID.
 
 ## 4. Validate, patch, and retest
 
