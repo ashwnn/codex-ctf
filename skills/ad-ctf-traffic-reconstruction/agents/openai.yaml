@@ -1,0 +1,13 @@
+interface:
+  display_name: A/D Traffic Reconstruction
+  short_description: Reconstruct exploits from service traffic and logs
+  default_prompt: Use $ad-ctf-traffic-reconstruction to analyze this service PCAP,
+    correlate logs and source, and propose a narrow verified patch.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - atlas
+  allow_implicit_invocation: true

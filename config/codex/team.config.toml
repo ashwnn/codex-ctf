@@ -1,0 +1,8 @@
+# Explicit A/D team launch: five workers initially; /brrr can use up to twenty.
+# Other profiles remain single-agent. All workers inherit the OpenRouter provider.
+[features]
+multi_agent = true
+
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 20

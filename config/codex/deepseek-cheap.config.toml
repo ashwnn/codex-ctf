@@ -1,0 +1,5 @@
+# Explicit alternative only; the launcher never falls back automatically.
+model = "deepseek/deepseek-v4.1-flash"
+model_reasoning_effort = "low"
+tool_output_token_limit = 2000
+

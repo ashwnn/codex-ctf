@@ -1,0 +1,3 @@
+model = "stealth/space-bunny-alpha"
+model_reasoning_effort = "low"
+tool_output_token_limit = 2500

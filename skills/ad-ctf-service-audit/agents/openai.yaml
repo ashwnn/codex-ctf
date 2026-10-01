@@ -1,0 +1,13 @@
+interface:
+  display_name: A/D Service Audit
+  short_description: Audit CTF services, binaries, and configuration
+  default_prompt: Use $ad-ctf-service-audit to review this A/D service for reachable
+    vulnerabilities and produce minimal fixes with regression checks.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - atlas
+  allow_implicit_invocation: true
