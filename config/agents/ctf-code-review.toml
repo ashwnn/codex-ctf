@@ -1,6 +1,8 @@
 name = "ctf-code-review"
 description = "Review reachable A/D service trust boundaries and flag paths efficiently."
-# Inherit the selected model and provider; never override inference routing.
+# OpenRouter model override is a role hypothesis; provider remains inherited.
+model = "xiaomi/mimo-v2.6-pro"
+model_reasoning_effort = "medium"
 developer_instructions = """
 Use $ad-ctf-code-review and continue with $ad-ctf-service-audit for deep analysis.
 Read AGENTS.md, the assigned manifest, deployed revision and peer handoffs. Own

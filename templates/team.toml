@@ -18,7 +18,7 @@ safety_margin_seconds = 30
 event_end_utc = "unknown"
 api_documentation = "unknown"
 own_team = "unknown"
-nop_team = "1"
+nop_team = "unknown"
 
 [scaling]
 # The coordinator expands workers based on independent backlog. /brrr requests

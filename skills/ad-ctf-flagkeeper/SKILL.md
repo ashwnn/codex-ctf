@@ -27,6 +27,13 @@ the official expiration and a clock/latency margin. Sandbagging is allowed by
 Rules.pdf section 8.3, but expired flags cannot score (section 6.5). Warn without
 changing the user's hold policy.
 
+After an ambiguous send or timeout, use `review` to list only hashed IDs, state,
+expiry, attempts and receipt counts. Use `receipts --id <sha256>` to inspect
+recorded reconciliation history. These commands never print flag values. Check
+the official receipt source locally, then reconcile with JSONL containing the
+hashed `id`, normalized `status`, and a private evidence reference. Reconciliation
+stores that reference so later operators can audit the decision.
+
 Create `flags/submit-adapter.py` against the documented API or configure the
 generic `scripts/submit-http.py` only if its JSON contract matches. The adapter
 takes a JSON object with `flags` (entries containing hashed `id` and actual
@@ -44,4 +51,3 @@ before manually reconciling. Do not blindly resend uncertain flags. Stop on
 adapter errors/rate limits, preserve the queue and report counts. Acceptance is
 based on official receipts, never HTTP 200 alone. Each signal flushes only the
 snapshot present at invocation; new arrivals stay held. Do not submit during setup.
-

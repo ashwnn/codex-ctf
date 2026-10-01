@@ -44,8 +44,11 @@ def connect(path):
             attempts INTEGER NOT NULL DEFAULT 0);
         CREATE TABLE IF NOT EXISTS receipts (
             id INTEGER PRIMARY KEY, flag_id TEXT NOT NULL, at REAL NOT NULL,
-            state TEXT NOT NULL);
+            state TEXT NOT NULL, evidence TEXT);
     """)
+    receipt_columns = {row[1] for row in db.execute("PRAGMA table_info(receipts)")}
+    if "evidence" not in receipt_columns:
+        db.execute("ALTER TABLE receipts ADD COLUMN evidence TEXT")
     return db
 
 
@@ -101,6 +104,36 @@ def status(db, margin=30, at=None):
     return {"states": counts, "unknown_expiry": unknown, "at_risk_by": iso(deadline),
             "at_risk_count": loss, "earliest_expiry": iso(earliest) if earliest else None,
             "safety_margin_seconds": margin, "submission_mode": "hold_until_signal"}
+
+
+def review(db, limit=100):
+    """List uncertain/retry metadata only; never return flag values."""
+    if limit < 1 or limit > 500:
+        raise ValueError("Review limit must be 1..500")
+    rows = db.execute("""
+        SELECT f.id, f.state, f.captured, f.expires, f.attempts,
+               (SELECT COUNT(*) FROM receipts r WHERE r.flag_id=f.id) AS receipt_count,
+               (SELECT MAX(at) FROM receipts r WHERE r.flag_id=f.id) AS latest_receipt_at
+        FROM flags f WHERE f.state IN ('uncertain','retry')
+        ORDER BY f.expires IS NULL, f.expires, f.id LIMIT ?
+    """, (limit,)).fetchall()
+    return [{"id": row["id"], "state": row["state"],
+             "captured_at": iso(row["captured"]),
+             "expires_at": iso(row["expires"]) if row["expires"] is not None else None,
+             "attempts": row["attempts"], "receipt_count": row["receipt_count"],
+             "latest_receipt_at": iso(row["latest_receipt_at"])
+             if row["latest_receipt_at"] is not None else None} for row in rows]
+
+
+def receipt_history(db, ident, limit=100):
+    if not isinstance(ident, str) or len(ident) != 64 or any(c not in "0123456789abcdef" for c in ident):
+        raise ValueError("Receipt ID must be a lowercase SHA-256 digest")
+    if limit < 1 or limit > 500:
+        raise ValueError("Receipt limit must be 1..500")
+    rows = db.execute("SELECT at,state,evidence FROM receipts WHERE flag_id=? ORDER BY at DESC,id DESC LIMIT ?",
+                      (ident, limit)).fetchall()
+    return [{"at": iso(row["at"]), "status": row["state"], "evidence": row["evidence"]}
+            for row in rows]
 
 
 def apply_results(db, rows, payload):
@@ -187,14 +220,15 @@ def reconcile(db, stream):
             if not line.strip():
                 continue
             r = json.loads(line)
-            if r.get("status") not in STATES | {"pending"} or not r.get("evidence"):
+            if (not isinstance(r, dict) or r.get("status") not in STATES | {"pending"} or
+                    not isinstance(r.get("evidence"), str) or not r["evidence"].strip()):
                 raise ValueError("Reconciliation needs a valid status and receipt evidence path")
             updated = db.execute("UPDATE flags SET state=? WHERE id=? AND state IN ('uncertain','retry')",
                                  (r["status"], r.get("id")))
             if updated.rowcount != 1:
                 raise ValueError("Reconciliation ID must identify an uncertain/retry record")
-            db.execute("INSERT INTO receipts (flag_id,at,state) VALUES (?,?,?)",
-                       (r["id"], time.time(), r["status"]))
+            db.execute("INSERT INTO receipts (flag_id,at,state,evidence) VALUES (?,?,?,?)",
+                       (r["id"], time.time(), r["status"], r["evidence"]))
             count += 1
     return {"reconciled": count}
 
@@ -206,6 +240,11 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("ingest", help="Import JSONL on stdin, print counts only")
     commands.add_parser("reconcile", help="Apply reviewed receipts from JSONL stdin")
+    review_parser = commands.add_parser("review", help="List uncertain/retry metadata without flag values")
+    review_parser.add_argument("--limit", type=int, default=100)
+    receipts_parser = commands.add_parser("receipts", help="Show receipt history for a hashed flag ID")
+    receipts_parser.add_argument("--id", required=True)
+    receipts_parser.add_argument("--limit", type=int, default=100)
     for command in ("status", "plan"):
         p = commands.add_parser(command)
         p.add_argument("--at", help="ISO time of planned submission")
@@ -226,6 +265,10 @@ def main():
             result = ingest(db, sys.stdin)
         elif args.command == "reconcile":
             result = reconcile(db, sys.stdin)
+        elif args.command == "review":
+            result = {"items": review(db, args.limit)}
+        elif args.command == "receipts":
+            result = {"id": args.id, "receipts": receipt_history(db, args.id, args.limit)}
         elif args.command == "submit":
             result = submit(db, args.adapter, args.signal, args.batch_size,
                             args.max_batches, args.delay, args.timeout, args.margin,

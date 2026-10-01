@@ -1,6 +1,7 @@
 """Synthetic flag lifecycle and transport tests; never send live flags."""
 import contextlib
 import datetime as dt
+import hashlib
 import importlib.util
 import io
 import json
@@ -96,8 +97,30 @@ class LedgerTests(unittest.TestCase):
         self.assertNotIn("SECRET", json.dumps(result))
         self.assertEqual(ledger.submit(self.db, adapter, "SUBMIT_NOW")["attempted"], 0)
         ident = self.db.execute("SELECT id FROM flags").fetchone()[0]
+        item = ledger.review(self.db)[0]
+        self.assertEqual(item["id"], ident)
+        self.assertEqual(item["state"], "uncertain")
+        self.assertNotIn("flag", item)
+        self.assertNotIn("SYNTHETIC_FLAG_A", json.dumps(item))
         ledger.reconcile(self.db, io.StringIO(json.dumps({"id": ident, "status": "pending", "evidence": "receipts/mock.json"})))
         self.assertEqual(ledger.status(self.db)["states"]["pending"], 1)
+        receipts = ledger.receipt_history(self.db, ident)
+        self.assertEqual(receipts[0]["evidence"], "receipts/mock.json")
+        self.assertEqual(receipts[0]["status"], "pending")
+
+    def test_old_receipt_schema_is_migrated_without_data_loss(self):
+        path = self.root / "old/ledger.sqlite3"
+        path.parent.mkdir()
+        old = sqlite3.connect(path)
+        old.execute("CREATE TABLE receipts (id INTEGER PRIMARY KEY, flag_id TEXT NOT NULL, at REAL NOT NULL, state TEXT NOT NULL)")
+        old.execute("INSERT INTO receipts (flag_id,at,state) VALUES ('%s',1,'uncertain')" % ("a" * 64))
+        old.commit()
+        old.close()
+        migrated = ledger.connect(path)
+        self.addCleanup(migrated.close)
+        history = ledger.receipt_history(migrated, "a" * 64)
+        self.assertEqual(history[0]["status"], "uncertain")
+        self.assertIsNone(history[0]["evidence"])
 
     def test_timeout_and_bad_receipts_do_not_report_acceptance(self):
         self.ingest(record(expires=ledger.iso(time.time() + 300)))
@@ -135,6 +158,28 @@ print(json.dumps({"results":[{"id":e["id"],"status":"accepted"} for e in p["flag
         for data in (json.dumps(record()), '{"SYNTHETIC_SECRET_BROKEN":'):
             result = subprocess.run(command, input=data, text=True, capture_output=True, env=env)
             self.assertNotIn("SYNTHETIC", result.stdout + result.stderr)
+
+    def test_review_and_receipts_cli_expose_only_hashed_metadata(self):
+        db_path = self.root / "cli-review/ledger.sqlite3"
+        command = [sys.executable, str(ROOT / "scripts/flag-ledger.py"), "--db", str(db_path)]
+        imported = subprocess.run(command + ["ingest"], input=json.dumps(record()), text=True,
+                                  capture_output=True)
+        self.assertEqual(imported.returncode, 0, imported.stderr)
+        ident = hashlib.sha256(b"SYNTHETIC_FLAG_A").hexdigest()
+        db = sqlite3.connect(db_path)
+        db.execute("UPDATE flags SET state='uncertain' WHERE id=?", (ident,))
+        db.execute("INSERT INTO receipts (flag_id,at,state,evidence) VALUES (?,1,'uncertain','receipts/source.json')",
+                   (ident,))
+        db.commit()
+        db.close()
+        review_result = subprocess.run(command + ["review"], text=True, capture_output=True)
+        self.assertEqual(review_result.returncode, 0, review_result.stderr)
+        self.assertIn(ident, review_result.stdout)
+        self.assertNotIn("SYNTHETIC_FLAG_A", review_result.stdout)
+        receipts = subprocess.run(command + ["receipts", "--id", ident], text=True, capture_output=True)
+        self.assertEqual(receipts.returncode, 0, receipts.stderr)
+        self.assertIn("receipts/source.json", receipts.stdout)
+        self.assertNotIn("SYNTHETIC_FLAG_A", receipts.stdout)
 
 
 class HTTPTests(unittest.TestCase):

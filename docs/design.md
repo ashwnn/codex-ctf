@@ -31,8 +31,10 @@ primary relays urgent messages using native tools. Direct sibling messaging
 was unavailable in a synthetic CLI test. The
 explicit brrr prompt reprioritizes offense and scales toward twenty tasks.
 There is no Python or shell model scheduler. Other profiles retain disabled
-multi-agent tools. Custom agent TOMLs inherit the selected OpenRouter model and
-provider instead of routing inference themselves.
+multi-agent tools. Custom agent TOMLs inherit the OpenRouter provider. Most
+inherit the selected model; a few roles have explicit model and effort
+hypotheses in [model selection](model-selection.md). These are native Codex
+settings, not a separate router.
 
 ## Reference input versus user instruction
 
@@ -75,6 +77,19 @@ workflow; it does not enable the document's optional integrations.
   Durable handoffs keep work coherent after compaction.
 - Added a private flag ledger and an opt-in API transport adapter. These are
   local evidence/transport tools, not a model router or agent scheduler.
+- New service workspaces now start with a checker-contract record and a
+  per-change patch-verification template. They capture exact response behavior,
+  flag lifecycle, baseline/candidate results, observation windows and rollback
+  evidence without inventing event-specific values or imposing phase gates.
+- Team templates leave the NOP team unknown until its published value is
+  recorded, preventing a generic workspace from assuming a target identifier.
+- The launcher can resume an interactive Codex session under the isolated home.
+  Its project-config cleanup removes only `config.toml` in managed workspaces,
+  preserves other Codex assets, refuses external or symlinked project configs,
+  and rejects resume-time provider, approval and remote overrides.
+- The flag ledger exposes bounded review and receipt-history commands for
+  uncertain sends. They reveal hashed IDs and timing/state metadata only, and
+  reconciliation references are retained in SQLite for later review.
 
 ## Cost and provider behavior
 
@@ -83,7 +98,10 @@ The default auto-compaction threshold is 64K tokens even though the selected
 models advertise around 1M: short, saved handoffs reduce repeated history cost.
 Tool output limits are 2K–4K tokens. These are context controls, not spending caps.
 Actual spending limits belong on the OpenRouter key. `models` reports key budget
-without printing credentials. Free preview availability and rate limits may vary.
+without printing credentials. `models --zdr MODEL...` lists currently eligible
+endpoints and their provider price/latency/throughput. It cannot verify whether
+ZDR is enforced for the account or API key. Enable the relevant OpenRouter
+account or guardrail settings for all model groups used before the event.
 
 All profiles use OpenRouter. No direct OpenAI model, fallback, guardian reviewer,
 background memory generation, implicit subagent or external connector is enabled.

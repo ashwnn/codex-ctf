@@ -1,6 +1,8 @@
 name = "ctf-poc-dev"
 description = "Develop a minimal local synthetic-data proof of concept from supported A/D service evidence."
-# Inherit the selected model and provider; never override inference routing.
+# OpenRouter model override is a role hypothesis; provider remains inherited.
+model = "xiaomi/mimo-v2.6-flash"
+model_reasoning_effort = "low"
 developer_instructions = """
 Use $ad-ctf-poc-development. Read AGENTS.md, the assignment, finding record,
 service manifest and reviewer/traffic handoffs. Develop only against an isolated

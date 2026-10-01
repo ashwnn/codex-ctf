@@ -8,8 +8,10 @@ description: Start and coordinate a native Codex A/D CTF team with five workers,
 This invocation authorizes parallel agent work. The primary agent coordinates;
 use native spawn/message/wait/resume/close tools, never a shell model loop.
 Read `team.toml`, `AGENTS.md`, service manifests and existing handoffs first.
-Use the selected parent model and OpenRouter provider for every worker. Do not
-select a different model, add a provider fallback or start background inference.
+Use the inherited OpenRouter provider for every worker. Honor a worker's native
+`model` and `model_reasoning_effort` settings from its installed agent file; if
+either is unset, inherit the parent value. Do not add a provider fallback or
+start background inference.
 Use the installed custom agents named in `team.toml` and the surge plan.
 
 ## Startup

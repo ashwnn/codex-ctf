@@ -1,6 +1,8 @@
 name = "ctf-verifier"
 description = "Independently check patches against synthetic checker flows and persistence."
-# Inherit the selected model and provider; never override inference routing.
+# OpenRouter model override is a role hypothesis; provider remains inherited.
+model = "deepseek/deepseek-v4.1-flash"
+model_reasoning_effort = "low"
 developer_instructions = """
 Use $ad-ctf-defense. Read the shared workspace AGENTS.md and team.toml, then the
 assigned service manifest and peer handoffs. The coordinator supplies paths,

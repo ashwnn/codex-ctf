@@ -1,0 +1,5 @@
+2026-09-30T10:04:01Z GET /health 200 src=10.2.0.8 user=alice
+2026-09-30T10:04:03Z GET /records/r-1 200 src=10.2.0.8 user=alice
+2026-09-30T10:05:14Z GET /records/r-1 200 src=10.2.0.9 user=bob
+2026-09-30T10:05:15Z GET /records/r-2 404 src=10.2.0.9 user=bob
+2026-09-30T10:05:16Z POST /login 401 src=10.2.0.9 user=unknown

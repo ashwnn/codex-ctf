@@ -89,3 +89,132 @@ Remaining gaps: no OpenRouter key was available, so `models` and `smoke` (live
 inference, shell, apply_patch and tool-result replay) were not re-run in this
 pass; the TUI `/prompts:` picker was not exercised interactively. Codex `doctor`
 was run on Linux only.
+
+## Workspace readiness records — October 1, 2026
+
+- `python3 -m unittest discover -s tests -v`: 41 tests passed. Coverage includes
+  workspace readiness records, native session-resume argument forwarding,
+  rejection of resume provider/approval overrides, refusal to delete
+  unmanaged/symlinked Codex config, hashed flag review, persisted reconciliation
+  evidence, migration of existing ledger DBs, and option-looking resume prompts
+  remaining positional data.
+- `bash -n bin/ctf-codex codex-ctf` and `git diff --check`: passed.
+- `bin/ctf-codex doctor`: all seven profiles passed `--strict-config`, native
+  prompt/skill discovery passed, and generated assets matched (12 agents, 15
+  skills). Native doctor reported 22 ok, 1 idle, 1 note and 1 warning because
+  the check ran non-interactively with `TERM=dumb`; no inference was performed.
+- Installed `codex-cli 0.159.3` `resume --help` exposes `--last`, session ID,
+  profile, working directory and strict-config options used by the wrapper.
+- Ledger CLI tests exercised `review` and `receipts` against a synthetic flag;
+  outputs contained its digest and receipt reference but not its value.
+- Initialized workspace records are templates only. No event-specific checker
+  contract, service address, team identifier, API adapter or rollback command
+  has been supplied or validated; populate them from published event material
+  and local observation before relying on them.
+
+## Runtime preflight and setup behavior
+
+`bin/ctf-codex doctor` reports and enforces the Python 3.9+ prerequisite;
+`models` checks it before invoking the Python catalog client. Launch setup
+replaces changed managed files atomically and keeps obsolete generated files in
+place so another active Codex process cannot lose an agent or skill it has not
+loaded yet. A launch sanitizes only its selected managed workspace's planted
+`.codex/config.toml`; `setup` does not walk or alter workspaces. If agent or
+skill source files are intentionally removed, remove their obsolete installed
+copies from the isolated `.runtime/codex` after stopping active sessions.
+
+## Private ledger backup and restore
+
+The flag ledger uses SQLite WAL mode. Do not copy only `ledger.sqlite3` while
+the ledger may be active: committed rows may still be in its `-wal` file. Use
+SQLite's online backup API to a private, ignored destination, then validate a
+restore from a synthetic database before relying on the procedure:
+
+```bash
+python3 - <<'PY'
+import sqlite3
+from pathlib import Path
+
+source = Path("workspaces/SERVICE/flags/ledger.sqlite3")
+backup = Path(".runtime/backups/SERVICE-ledger.sqlite3")
+backup.parent.mkdir(parents=True, exist_ok=True)
+src = sqlite3.connect(source)
+dst = sqlite3.connect(backup)
+src.backup(dst)
+dst.close()
+src.close()
+backup.chmod(0o600)
+PY
+```
+
+Replace `SERVICE` with the managed workspace name. Keep the destination under
+`.runtime/`, which is ignored and private. For restore, stop ledger writers,
+copy the backup to a new private path, and open it with
+`python3 scripts/flag-ledger.py --db PATH status`. Compare the redacted counts
+and receipt history before pointing any workflow at it. Never test restore with
+event flags; use a synthetic ledger fixture. Preserve the original database
+until the restored copy is verified.
+
+## Synthetic operations drill — October 1, 2026
+
+`python3 scripts/operations-drill.py` passed all 14 checks on a service bound
+only to loopback. The saved result is
+`.runtime/operations-drill/run-20261001T225914Z/result.json` (ignored and
+private). It recorded three health observations in each of four phases, exact
+checker-shaped response matches, source hashes, an SQLite recovery backup, and
+startup revision markers and process stop/start intervals. Record A survived candidate restart and
+source-only rollback; record B, placed after the change, also survived both.
+The final database held two records, and the saved result omits their bodies.
+
+This verifies local fixture persistence and command-sequencing only. The
+candidate differs from baseline by a revision marker, so this is not evidence
+that an actual security patch preserves event checker behavior. Organizer
+responses, Docker deployment, network ingress, flag expiry and event rollback
+remain unverified. Use the drill output as synthetic training evidence and
+write an event-specific verification record from the workspace template.
+
+## Tulip replay integration — October 1, 2026
+
+The supplied farm template and Tulip replay were reviewed as code references;
+neither was executed or copied into the repository. The farm template's
+defaults span a guessed 1–1000 team range, 32 workers, repeated rounds, and
+object IDs 2000 down to 1. It prints captured values and submits directly over
+a TCP socket without a verified receipt contract. The replay accepts an
+arbitrary `--target`, disables TLS certificate checks for HTTPS, and prints the
+captured value. These defaults do not meet this harness's published-scope,
+private flag handoff or signal-only submission rules.
+
+Added `scripts/tulip-replay.py` as a one-request adapter: the exact target must
+match an operator-maintained published-target list; it stores captures in a
+private inbox, refuses public plain HTTP, does not follow redirects and has no
+submission path. Three local mock-server tests cover exact allowlisting,
+private non-echoing handoff and HTTP rejection. No event endpoint was contacted.
+
+## Budget-conscious model selection — October 1, 2026
+
+- The provisional root/worker model is DeepSeek V4.1 Flash. Five native Codex
+  agent files explicitly set MiMo V2.6 Pro for audit/code review/defense, MiMo
+  V2.6 Flash for PoC development, and DeepSeek V4.1 Flash for verification.
+  Other agents inherit the selected model. The assignment is a cost/latency
+  hypothesis, not an A/B winner.
+- `bin/ctf-codex models --zdr` returned eligible endpoint metadata for DeepSeek
+  V4.1 Flash (27 endpoints), MiMo V2.6 Flash (3), MiMo V2.6 Pro (1), GLM 5.3
+  Flash (28), GPT-6 Luna (3) and GPT-6.1 Sol (3). The diagnostic expressly
+  warns that endpoint eligibility does not confirm account/key enforcement.
+- A native Codex patch task against the synthetic fixture received OpenRouter
+  HTTP 402 before inference because the account has never purchased credits. A
+  free Qwen 3.8 27B attempt returned HTTP 429 before inference. Neither attempt
+  incurred cost or yielded a model result. OpenRouter's key metadata reports a
+  $1 limit, but the balance cannot make a paid request until credits are bought.
+- A fresh read-only metadata check still reports free-tier status, a $1 limit,
+  $1 remaining and $0 usage. The account therefore cannot provide paid A/B
+  evidence yet; no new inference was attempted.
+- `python3 -m unittest discover -s tests -v`: 50 tests passed after the current
+  reliability, Python-preflight, operations-drill and Tulip-adapter changes.
+  Shell syntax, Python compilation and
+  `git diff --check` passed. `bin/ctf-codex doctor` passed strict config for all
+  seven profiles, discovered 12 agents and 15 skills, and performed no
+  inference. The latest native doctor reported 22 ok, 1 idle, 1 note and 1
+  warning: noninteractive `TERM=dumb`; it reported 0 failures.
+- Synthetic comparison fixtures are tracked under `benchmarks/model-selection/`;
+  all attempted event logs and metadata remain in ignored `.runtime/`.

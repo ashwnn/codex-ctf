@@ -33,6 +33,12 @@ and checker validation. The coordinator assigns a single code/deployment writer
 per service. Workers share one isolated OpenRouter Codex profile; neither the
 launcher nor a Python script makes agent decisions.
 
+Resume an interrupted interactive coordinator with
+`bin/ctf-codex resume --workspace workspaces/<service> --last` or pass its saved
+Codex session ID. Keep the same workspace and profile; otherwise the native
+roster can point to workers from a different session. `--exec` diagnostic runs
+are ephemeral and are not event-team sessions.
+
 `/prompts:brrr` in the interactive CLI or `bin/ctf-codex brrr` starts an
 offense-focused surge. The primary reuses existing workers and expands toward
 twenty total children only when there are distinct tasks. A typical allocation
@@ -49,7 +55,9 @@ does not authorize flag submission. `setup` installs the native prompts
 1. **Inventory** the actual containers, image digests, source revision,
    entrypoints, listener/port, volumes, dependencies, checker-like flows,
    flag storage, published IDs, expiry and rollback. Do not assume Compose or
-   any application language until manifests and runtime show them.
+   any application language until manifests and runtime show them. Record normal
+   flows, exact response shapes, flag lifecycle, and evidence in the generated
+   `verification/checker-contract.md`; leave unsupported fields unknown.
 2. **Observe** bounded own-service log and PCAP windows around a tick.
    Group repeated signatures before reading payloads. Correlate proxy traffic,
    service logs, response shape and checker status. Separate failed probes
@@ -71,7 +79,10 @@ does not authorize flag submission. `setup` installs the native prompts
 6. **Patch** the authoritative source with one writer, preserve persistent
    data, run normal create/read, old-flag retrieval, synthetic exploit and
    restart checks. Compare checker responses. Keep a rollback that does not
-   erase newly placed flags.
+   erase newly placed flags. Create a dated copy of
+   `verification/patch-verification-template.md` to compare baseline and
+   candidate results, observation windows, and rollback evidence. The record
+   informs the operator; it does not impose a phase gate.
 7. **Hold or submit** according to the user's explicit signal. The flagkeeper
    deduplicates, tracks each published expiration and shows how many flags
    will be lost by the planned release time. It never auto-submits on an

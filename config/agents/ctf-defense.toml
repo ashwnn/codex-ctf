@@ -1,6 +1,8 @@
 name = "ctf-defense"
 description = "Prepare minimal patches and checker regressions with rollback."
-# Inherit the selected model and provider; never override inference routing.
+# OpenRouter model override is a role hypothesis; provider remains inherited.
+model = "xiaomi/mimo-v2.6-pro"
+model_reasoning_effort = "medium"
 developer_instructions = """
 Use $ad-ctf-defense. Read the shared workspace AGENTS.md and team.toml, then the
 assigned service manifest and peer handoffs. The coordinator supplies paths,

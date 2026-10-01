@@ -60,12 +60,19 @@ printf 'HOME=%s\\nOPENAI=%s\\nCODEX_KEY=%s\\n' "$CODEX_HOME" "${OPENAI_API_KEY:-
         workspace = self.root / "workspaces/default"
         self.assertTrue((workspace / "service.toml").exists())
         self.assertTrue((workspace / "team.toml").exists())
+        contract = workspace / "verification/checker-contract.md"
+        patch_record = workspace / "verification/patch-verification-template.md"
+        self.assertTrue(contract.exists())
+        self.assertIn("default", contract.read_text())
+        self.assertTrue(patch_record.exists())
+        self.assertIn("not an automatic approval gate", patch_record.read_text())
         self.assertTrue((workspace / "flags/inbox").is_dir())
         self.assertTrue((workspace / "coordination/inbox").is_dir())
         self.assertTrue((workspace / "AGENTS.md").exists())
         self.assertTrue((workspace / "evidence/raw").is_dir())
+        self.assertIn('nop_team = "unknown"', (workspace / "team.toml").read_text())
         config = (self.root / ".runtime/codex/config.toml").read_text()
-        self.assertIn('model = "stealth/space-bunny-alpha"', config)
+        self.assertIn('model = "deepseek/deepseek-v4.1-flash"', config)
         self.assertIn('trust_level = "trusted"', config)
 
     def test_team_native_configuration_and_single_agent_profiles(self):
@@ -86,9 +93,19 @@ printf 'HOME=%s\\nOPENAI=%s\\nCODEX_KEY=%s\\n' "$CODEX_HOME" "${OPENAI_API_KEY:-
         self.assertIn("enabled = true", (home / "team.config.toml").read_text())
         self.assertIn("max_concurrent_threads_per_session = 20", (home / "team.config.toml").read_text())
         self.assertIn("multi_agent = false", (home / "config.toml").read_text())
+        role_models = {
+            "ctf-audit": "xiaomi/mimo-v2.6-pro",
+            "ctf-code-review": "xiaomi/mimo-v2.6-pro",
+            "ctf-defense": "xiaomi/mimo-v2.6-pro",
+            "ctf-poc-dev": "xiaomi/mimo-v2.6-flash",
+            "ctf-verifier": "deepseek/deepseek-v4.1-flash",
+        }
         for file in (home / "agents").glob("*.toml"):
             self.assertNotIn("model_provider =", file.read_text())
-            self.assertNotIn("model =", file.read_text())
+            if file.stem in role_models:
+                self.assertIn('model = "%s"' % role_models[file.stem], file.read_text())
+            else:
+                self.assertNotIn("\nmodel =", file.read_text())
         self.assertTrue((home / "skills/ad-ctf-flagkeeper/SKILL.md").exists())
         self.assertTrue((home / "skills/ad-ctf-team/references/communication.md").exists())
         self.assertTrue((home / "prompts/brrr.md").exists())
@@ -122,6 +139,33 @@ printf 'HOME=%s\\nOPENAI=%s\\nCODEX_KEY=%s\\n' "$CODEX_HOME" "${OPENAI_API_KEY:-
         self.assertIn("HOME=" + str(self.root / ".runtime/codex"), args)
         self.assertNotIn("synthetic-test-key", self.capture.read_text())
 
+    def test_native_resume_uses_isolated_home_and_passes_native_selection(self):
+        result = self.run_cli("resume", "--workspace", str(self.root / "workspaces/default"),
+                              "--last", "Continue the current service handoff.")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        args = self.capture.read_text().splitlines()
+        self.assertIn("resume", args)
+        self.assertIn("--last", args)
+        self.assertIn("Continue the current service handoff.", args)
+        self.assertIn("--strict-config", args)
+        self.assertIn("--profile\nteam", self.capture.read_text())
+        self.assertIn("HOME=" + str(self.root / ".runtime/codex"), self.capture.read_text())
+        self.assertNotIn("exec", args)
+
+    def test_native_resume_rejects_provider_and_approval_overrides(self):
+        for option in ("-c", "--oss", "--approve-for-me", "--remote"):
+            result = self.run_cli("resume", option)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("overrides are not allowed", result.stderr)
+            self.assertFalse(self.capture.exists())
+
+    def test_native_resume_treats_option_like_prompt_as_data_after_separator(self):
+        result = self.run_cli("resume", "--last", "--", "--oss")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        args = self.capture.read_text().splitlines()
+        resume_index = args.index("resume")
+        self.assertEqual(args[resume_index + 1:resume_index + 4], ["--last", "--", "--oss"])
+
     def test_skill_prompt_is_data_and_shell_substitution_is_not_executed(self):
         marker = self.root / "unwanted"
         prompt = "Review literal $(touch %s) and `echo injection`" % marker
@@ -134,6 +178,8 @@ printf 'HOME=%s\\nOPENAI=%s\\nCODEX_KEY=%s\\n' "$CODEX_HOME" "${OPENAI_API_KEY:-
     def test_init_preserves_existing_workspace_and_rejects_traversal(self):
         self.assertNotEqual(self.run_cli("init", "../outside").returncode, 0)
         self.assertEqual(self.run_cli("init", "sample-service").returncode, 0)
+        contract = self.root / "workspaces/sample-service/verification/checker-contract.md"
+        self.assertIn("sample-service", contract.read_text())
         file = self.root / "workspaces/sample-service/source/keep.txt"
         file.write_text("evidence")
         self.assertNotEqual(self.run_cli("init", "sample-service").returncode, 0)
@@ -152,7 +198,7 @@ printf 'HOME=%s\\nOPENAI=%s\\nCODEX_KEY=%s\\n' "$CODEX_HOME" "${OPENAI_API_KEY:-
         self.assertIn(">= 0.159.2 is required", result.stderr)
         self.assertFalse((self.root / ".runtime/codex").exists())
 
-    def test_setup_refresh_removes_stale_managed_assets_and_escapes_toml(self):
+    def test_setup_preserves_stale_assets_and_escapes_toml(self):
         home = self.root / ".runtime/codex"
         stale_skill = home / "skills/ad-ctf-removed/SKILL.md"
         stale_skill.parent.mkdir(parents=True)
@@ -162,10 +208,30 @@ printf 'HOME=%s\\nOPENAI=%s\\nCODEX_KEY=%s\\n' "$CODEX_HOME" "${OPENAI_API_KEY:-
         stale_agent.write_text("stale")
         result = self.run_cli("setup")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertFalse(stale_skill.parent.exists())
-        self.assertFalse(stale_agent.exists())
+        self.assertTrue(stale_skill.exists())
+        self.assertTrue(stale_agent.exists())
         config = (home / "config.toml").read_text()
         self.assertIn('projects."' + str(self.root).replace('"', '\\"') + '"', config)
+
+    def test_setup_does_not_sanitize_any_workspace(self):
+        planted = self.root / "workspaces/active/.codex/config.toml"
+        planted.parent.mkdir(parents=True)
+        planted.write_text('model = "workspace-model"\n')
+        result = self.run_cli("setup")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(planted.read_text(), 'model = "workspace-model"\n')
+
+    def test_python_38_blocks_doctor_and_model_catalog(self):
+        fake_python = self.root / "old-python-bin/python3"
+        fake_python.parent.mkdir()
+        fake_python.write_text("#!/bin/sh\nprintf '3.8\\n'\n")
+        fake_python.chmod(0o755)
+        self.env["PATH"] = str(fake_python.parent) + os.pathsep + self.env["PATH"]
+        for command in (("doctor",), ("models",)):
+            result = self.run_cli(*command)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Python 3.9+ is required", result.stderr)
+        self.assertFalse((self.root / ".runtime/codex").exists())
 
     def test_missing_credentials_fail_before_codex_launch(self):
         self.env.pop("OPENROUTER_API_KEY")
@@ -217,7 +283,7 @@ printf 'HOME=%s\\nOPENAI=%s\\nCODEX_KEY=%s\\n' "$CODEX_HOME" "${OPENAI_API_KEY:-
         stub.write_text("import sys\nprint('MODEL=' + ','.join(sys.argv[1:]))\n")
         default = self.run_cli("models")
         self.assertEqual(default.returncode, 0, default.stderr)
-        self.assertEqual(default.stdout.strip(), "MODEL=stealth/space-bunny-alpha")
+        self.assertEqual(default.stdout.strip(), "MODEL=deepseek/deepseek-v4.1-flash")
         explicit = self.run_cli("models", "deepseek/deepseek-v4.1-flash")
         self.assertEqual(explicit.stdout.strip(), "MODEL=deepseek/deepseek-v4.1-flash")
 
@@ -232,9 +298,53 @@ printf 'HOME=%s\\nOPENAI=%s\\nCODEX_KEY=%s\\n' "$CODEX_HOME" "${OPENAI_API_KEY:-
         planted = self.root / "workspaces/svc/.codex/config.toml"
         planted.parent.mkdir(parents=True)
         planted.write_text('model = "injected-model"\n')
+        note = planted.parent / "local-note.txt"
+        note.write_text("preserve")
         result = self.run_cli("run", "--workspace", str(self.root / "workspaces/svc"), "go")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertFalse(planted.parent.exists())
+        self.assertFalse(planted.exists())
+        self.assertEqual(note.read_text(), "preserve")
+
+    def test_unmanaged_project_config_is_preserved_and_launch_refused(self):
+        workspace = self.root / "unmanaged-service"
+        config = workspace / ".codex/config.toml"
+        config.parent.mkdir(parents=True)
+        config.write_text('model = "user-model"\n')
+        note = config.parent / "note.txt"
+        note.write_text("keep")
+        result = self.run_cli("run", "--workspace", str(workspace), "go")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("outside managed workspaces", result.stderr)
+        self.assertEqual(config.read_text(), 'model = "user-model"\n')
+        self.assertEqual(note.read_text(), "keep")
+        self.assertFalse(self.capture.exists())
+
+    def test_managed_codex_symlink_is_not_followed_or_modified(self):
+        self.run_cli("init", "symlink-service")
+        target = self.root / "outside-codex"
+        target.mkdir()
+        config = target / "config.toml"
+        config.write_text('model = "user-model"\n')
+        project_codex = self.root / "workspaces/symlink-service/.codex"
+        project_codex.symlink_to(target, target_is_directory=True)
+        result = self.run_cli("run", "--workspace", str(self.root / "workspaces/symlink-service"), "go")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("is a symlink", result.stderr)
+        self.assertEqual(config.read_text(), 'model = "user-model"\n')
+        self.assertTrue(project_codex.is_symlink())
+        self.assertFalse(self.capture.exists())
+
+    def test_symlinked_workspaces_root_is_not_cleaned(self):
+        external = self.root / "external-workspaces"
+        config = external / "svc/.codex/config.toml"
+        config.parent.mkdir(parents=True)
+        config.write_text('model = "user-model"\n')
+        (self.root / "workspaces").symlink_to(external, target_is_directory=True)
+        result = self.run_cli("run", "--workspace", str(external / "svc"), "go")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Managed workspaces root is a symlink", result.stderr)
+        self.assertEqual(config.read_text(), 'model = "user-model"\n')
+        self.assertFalse(self.capture.exists())
 
     def test_setup_is_idempotent_with_single_trust_and_managed_counts(self):
         self.run_cli("setup")
