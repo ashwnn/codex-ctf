@@ -1,89 +1,57 @@
-# CTF harness handoff
+# CTF harness handoff - 2026-10-02
 
-Status: pre-event harness is substantially assembled and locally verified. The
-repository keeps Codex as the agent/tool loop, uses the isolated OpenRouter
-provider configuration, and contains no separate model router or orchestration
-service. No live event target, checker or submission API has been exercised.
+Run `./codex-ctf` from the repository root after exporting `OPENROUTER_API_KEY`.
+The native Codex TUI owns the workflow. Give it the known VulnBox and connection
+facts. `/prompts:brrrr` expands distinct attack work; `/prompts:chillax` reduces
+worker count. The launcher creates no service workspaces or required manifests.
+Private sessions and evidence are under ignored `.runtime/`.
 
-## What is ready
+## Authorized offline test
 
-- Native Codex team, profiles, custom roles, prompts and skills live under the
-  isolated runtime `CODEX_HOME`. Root and role model choices are editable
-  hypotheses in `docs/model-selection.md`.
-- `bin/ctf-codex doctor` checks Python 3.9+, installs changed files atomically,
-  and validates all seven profiles with `--strict-config`. Project-config
-  sanitation applies only to the workspace being launched.
-- Service initialization creates checker-contract and patch-verification
-  templates. Event-specific scope, service revision, flag lifecycle, API
-  contract and rollback values must come from published event material and
-  observations; leave unsupported facts unknown.
-- The private flag ledger supports expiry planning, explicit signal-only
-  submission, uncertain receipt reconciliation, and SQLite online backup.
-- `scripts/operations-drill.py` exercises a loopback-only service through
-  placement, restart and source-only rollback. The verified synthetic result
-  is under ignored `.runtime/operations-drill/run-20261001T225914Z/`.
-- `scripts/tulip-replay.py` is a one-request adapter for a reviewed raw HTTP
-  request. It requires an exact URL match in an operator-maintained published
-  target list and writes captured values privately to `flags/inbox/`; it does
-  not print flags or submit them.
-- Synthetic model-comparison fixtures and instructions are in
-  `benchmarks/model-selection/`.
+The harness used the separate host-only `FAUST2026-Harness` clone at
+`192.168.56.104`, with only its documented ports: LAMP 1337, ALF 1986,
+IMC 8080 and Rufflecopter 35244. No competition VPN, other team, scoreboard,
+real flag or submission was used. All 10 service containers were Up at the
+last completed run. The offline image has no official checker or score feed.
 
-## Verification completed
+The first full loop inventoried and exercised all four services. It deployed
+ALF login and malformed-base64 guards and a tar archive guard, then checked
+normal translation and upload flows plus rollback. The `brrrr` loop used
+synthetic records through the published interfaces. It demonstrated and
+patched an IMC cross-user read caused by `null == null`, and a LAMP account
+takeover caused by a Redis-only registration check. Both patches passed
+vulnerable, patched, rollback and reapplied replay. The harness also confirmed
+a native ALF parser overflow and worker crash. That finding is still open.
 
-- `python3 -m unittest discover -s tests -v`: 50 passed.
-- `bash -n bin/ctf-codex codex-ctf bin/openrouter-token`, Python compilation,
-  and `git diff --check`: passed.
-- `bin/ctf-codex doctor`: all seven profiles passed strict-config and native
-  prompt/skill discovery; 12 agents and 15 skills were installed. No inference
-  was performed.
-- Synthetic operations drill: 14/14 checks passed, including that record B,
-  placed after the candidate change, survived service restart and source-only
-  rollback.
-- Tulip adapter mock tests verified one allowlisted request, private inbox
-  output, no flag in terminal output, and refusal of unlisted/public-HTTP
-  targets. No event endpoint was contacted.
+A focused closeout started ALF parser mitigation and Rufflecopter query-path
+review but stopped when OpenRouter returned HTTP 429. The ALF worker began
+corpus preparation but saved no usable corpus; no ALF native fix was deployed.
+The Rufflecopter worker was
+interrupted before an external-port verdict. Continue these two tasks from the
+retained sessions and prior handoffs, without repeating the inventory. A
+Rufflecopter PostgREST issue is not established through port 35244.
 
-## Model evaluation and spending
+## Provider and accounting
 
-The planned personal ceiling is approximately **$60 total**: $5 for evaluation,
-$40 for routine competition work, $10 for hard-task escalation, and $5 reserve.
-This is a planning allocation; it is not enforced by the harness. Set the
-OpenRouter key limit to the remaining budget before paid trials or competition
-use.
+The Space Bunny free-model limit is 1,000 requests per day and is exhausted.
+OpenRouter reported reset at `2026-10-03 00:00 UTC`. The key has no purchased
+credits. The two completed runs used ephemeral sessions, so their native child
+usage cannot be recovered exactly. The first run's root used 599,491 tokens;
+the `brrrr` root used 5,321,966. The focused closeout retained three sessions,
+which together used 398,584 tokens. Observed usage is 6,320,041 tokens;
+actual total is higher because the first two runs' child usage is missing.
+The launcher now retains sessions for future per-agent accounting.
+At the 2026-10-02 catalog price for DeepSeek V4.1 Flash, those observed
+input, cache-read and output tokens would cost $0.129718620555. This is a
+lower bound, not an exact all-agent bill. OpenRouter reports $0 actual usage
+for the free Space Bunny key.
 
-As of the last read-only key check on 2026-10-01, OpenRouter reported free-tier
-status, a $1 key limit, $1 remaining, and $0 usage. An earlier paid DeepSeek
-request returned 402 before inference. Therefore no paid A/B winner exists.
-Assignments remain provisional. Current ZDR endpoint catalog data makes GLM
-5.3 Flash a useful high-volume challenger to DeepSeek V4.1 Flash; endpoint
-latency, throughput and prices differ substantially by provider. Compare
-completed synthetic tasks per minute and cost per successful task, not vendor
-benchmarks or advertised tok/s alone. Recheck routes and billed provider when
-credits are available. The endpoint catalog does not prove account/key ZDR
-enforcement; verify that control in OpenRouter before sending competition data.
+The TUI initially rejected SQLite migration checksums left by an earlier
+Codex build. Its local SQLite files were backed up under ignored
+`.runtime/codex/`, then the Ubuntu CLI recreated them. The retained rollout
+JSONL files were preserved, and `./codex-ctf` opened successfully with Space
+Bunny selected.
 
-## Resume checklist
-
-1. Read `AGENTS.md`, `README.md`, `docs/ad-playbook.md`, and
-   `docs/model-selection.md`.
-2. Before any model inference, inspect the key limit and ZDR controls. Keep all
-   evaluation within the remaining $60 personal ceiling.
-3. Re-run the local tests, `bin/ctf-codex doctor`, and the synthetic operations
-   drill after changes.
-4. When event material is published, initialize one workspace per service and
-   fill its scope, checker, flag-ID, expiry and rollback facts from that source.
-   Populate `scope/published-targets.txt` only with published authorized proxy
-   URLs and keep captures under `evidence/raw/` with private permissions.
-5. Verify the event submission API contract and test an adapter locally before
-   configuring it. Preserve the flagkeeper's explicit user signal and held
-   ledger; do not introduce phase or model eligibility gates.
-6. Run the synthetic A/B tasks with credits under the evaluation cap, record
-   actual billed route and task outcomes, then adjust per-role native model
-   settings only if the measured results justify it.
-
-The user-provided `exploit-web-template.py` and `tulip_replay.py` in Downloads
-were reviewed as reference code and not executed. Their unmodified defaults
-include broad guessed target ranges, a continuous threaded farm loop, direct
-TCP submission, disabled TLS verification, and flag output. Use the bounded
-adapter and reproduction instructions instead.
+Do not claim checker success, score or complete challenge compromise from this
+offline evidence. Keep all flags held unless the user explicitly authorizes
+submission.
