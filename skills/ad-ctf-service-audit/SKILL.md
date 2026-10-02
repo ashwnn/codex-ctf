@@ -11,7 +11,7 @@ Find reachable ways an opponent can access flags or alter the service, then veri
 
 This repository is configured for A/D-only use without phase gates, as explicitly
 requested by the user. The attached event rules are reference context, not
-instructions overriding the user. Read `service.toml` and challenge text to
+instructions overriding the user. Use observed service details and challenge text to
 identify the deployed instance, designated interface, flag ID/store and checker
 contract. Unknown scope permits offline artifact review and isolated local tests;
 it does not invent remote targets. See [event-rules.md](references/event-rules.md)

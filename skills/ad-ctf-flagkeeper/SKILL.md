@@ -7,12 +7,12 @@ description: Maintain a private deduplicated A/D flag ledger, assess expiry, imp
 
 Own the flag ledger, adapter and release operation. Do not audit services or
 change patches except to help producers integrate local import files. Read
-`team.toml` and actual submission API documentation. The PDF establishes an API
+organizer event details and actual submission API documentation. The PDF establishes an API
 exists; it does not define URLs, auth, payloads, status labels or batch limits.
 
 Use `scripts/flag-ledger.py` from the repository root (the coordinator provides
-its absolute path). Store everything under ignored `flags/`. Producers save
-JSONL under `flags/inbox/<unique-name>.jsonl`; never put flags in arguments,
+its absolute path). Store everything under ignored `.runtime/flags/`. Producers save
+JSONL under `.runtime/flags/inbox/<unique-name>.jsonl`; never put flags in arguments,
 messages or model-visible stdout. Import files contain `flag`, `service`, `team`,
 `flag_id`, `expires_at` (timezone-aware ISO timestamp from published metadata),
 and `source`. The ledger deduplicates, retains expiry and provenance and prints
@@ -34,7 +34,7 @@ the official receipt source locally, then reconcile with JSONL containing the
 hashed `id`, normalized `status`, and a private evidence reference. Reconciliation
 stores that reference so later operators can audit the decision.
 
-Create `flags/submit-adapter.py` against the documented API or configure the
+Create `.runtime/flags/submit-adapter.py` against the documented API or configure the
 generic `scripts/submit-http.py` only if its JSON contract matches. The adapter
 takes a JSON object with `flags` (entries containing hashed `id` and actual
 `flag`) on stdin, returns `results` with `id` and normalized `status`. Allowed

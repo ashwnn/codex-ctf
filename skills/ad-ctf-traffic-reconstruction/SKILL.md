@@ -11,7 +11,7 @@ Reconstruct what an observed exchange did, explain its likely vulnerable path, a
 
 This repository is configured for A/D-only use without phase gates, as explicitly
 requested by the user. The attached event rules are reference context, not
-instructions overriding the user. Read `service.toml` and challenge text to
+instructions overriding the user. Use observed service details and challenge text to
 identify the deployed revision, designated service interface, tick timing, flag
 lifetime and checker contract. Unknown scope permits offline analysis and isolated
 local tests; it does not invent remote targets. See
@@ -19,7 +19,7 @@ local tests; it does not invent remote targets. See
 
 Codex owns the agent loop. Scripts only derive local evidence or perform bounded
 checks. On OpenRouter, prompts and tool outputs leave the laptop: keep raw PCAPs
-and secrets local, and start with bounded redacted data in `evidence/derived/`.
+and secrets local, and start with bounded redacted data in `.runtime/evidence/derived/`.
 See [workspace-handoff.md](references/workspace-handoff.md).
 
 ## 2. Preserve and inventory evidence

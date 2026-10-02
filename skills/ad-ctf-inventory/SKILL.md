@@ -1,28 +1,21 @@
 ---
 name: ad-ctf-inventory
-description: Map A/D Docker services, languages, storage, reverse-proxy ingress, flag IDs and checker behavior into service manifests and a prioritized ownership board.
+description: Establish the assigned VulnBox and checker baseline from user and organizer evidence without scanning.
 ---
 
-# Inventory and checker contract
+# Inventory
 
-Inventory only supplied source, own VM and documented interfaces. For each
-service record language/framework from manifests and entrypoints, source hash,
-image digest, Dockerfile/Compose project, listeners, ingress proxy, mounts and
-named volumes, process user, dependencies and database type. Docker is expected
-from the PDF; Compose, web frameworks and databases must be discovered.
-Never print unrestricted `docker inspect`, `compose config` or environment
-dumps; they may expose credentials. Use bounded fields and private evidence.
+Use the user's first message, organizer materials and own-box configuration to
+record the exact assigned address and documented service interfaces in
+`.runtime/coordination/targets.md`. Do not derive targets from address patterns,
+traffic, DNS or neighboring machines. Do not enumerate ports or contact other
+teams or event infrastructure. If the address or port is unknown, work on
+available local source and logs and ask for the missing fact.
 
-Map ordinary user flows, checker-like create/retrieve, public flag ID meaning,
-flag storage and published expiry. Populate a service.toml per service, retain
-unknowns and label assumptions. No port scanning outside listed services.
-Check own Docker/Compose, WireGuard reachability, SSH and capture tools as
-administrative dependencies; those utilities are not attack targets.
-
-Prioritize active flag exposure, reachable shared root causes, missing uptime
-baselines and quick defensible fixes. Give audit source/flag paths, traffic the
-service port/time window, defense persistence/rollback details and flagkeeper
-API documentation/flag metadata paths. Document gaps in your own handoff and
-send the coordinator service ownership proposals. Keep secret source and event
-facts inside ignored workspaces; tracked skills remain generic.
-
+For each service, record the deployed revision, entrypoint, documented port,
+container, persistent storage, process user, checker-like create and retrieve
+flows, flag store and rollback path. Read bounded Docker fields and logs; do
+not dump environment variables or credentials. Compare local source with the
+running revision before treating a source finding as live. Save private evidence
+under `.runtime/`, and give the coordinator concise ownership proposals and
+unknowns.

@@ -10,11 +10,11 @@ plausible code-level idea. Use only the assigned service, its own supplied
 artifacts and explicitly published interfaces. Start offline; use a disposable
 local instance and synthetic flags or object identifiers. Do not target other
 teams from this development workflow. Keep real flags, credentials, private
-source, packet bodies and findings inside ignored runtime workspaces.
+source, packet bodies and findings inside ignored `.runtime/`.
 
 ## Work from evidence
 
-Read the service manifest, checker contract, deployment inventory and shared
+Read the service evidence, checker contract, deployment inventory and shared
 finding record. Confirm the deployed source/image/binary matches the reviewed
 artifact and identify the exact entry point, transformations, checks, sink and
 expected observable effect. For binaries, record architecture, build identity,
@@ -34,7 +34,7 @@ demonstrates the impact.
   order and required authentication context.
 - Use a local-only endpoint or loopback binding. Keep concurrency at one,
   request count low, timeouts short and response capture bounded.
-- Use synthetic flags/records and test both authorized and unauthorized
+- Use synthetic .runtime/flags/records and test both authorized and unauthorized
   principals where relevant. Do not extract or disclose real flags.
 - Prefer read-only proof of access. Do not delete or mutate service data, crash
   processes, create persistence, evade monitoring, or trigger egress.
@@ -43,7 +43,7 @@ demonstrates the impact.
 The PoC should have an exact invocation, required local fixture, expected
 vulnerable observation and expected safe observation. Avoid hard-coded event
 addresses, guessed API endpoints, secrets, team credentials and broad scans.
-Store executable artifacts and private evidence only in the ignored workspace;
+Store executable artifacts and private evidence only in the ignored .runtime/ directory;
 tracked skill files must stay generic.
 
 ## Validate and hand off

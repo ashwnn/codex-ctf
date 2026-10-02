@@ -10,7 +10,7 @@ protocol quirks and causal testing, continue with
 `$ad-ctf-traffic-reconstruction`. Use only captures and logs from the team's own
 service or evidence the event explicitly authorizes. A shared proxy address is
 not an opponent identity. Keep raw captures, bodies, credentials and flags in
-the ignored workspace.
+the ignored .runtime/ directory.
 
 ## Detect and classify
 
