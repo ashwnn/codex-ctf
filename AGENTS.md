@@ -1,21 +1,50 @@
-# codex-ctf
+# A/D CTF operator
 
-Build a portable Codex CLI configuration for authorized A/D CTF preparation.
-Codex owns the harness: use native configuration, instructions, skills and its
-agent/tool loop. Shell/Python are setup, launch, diagnostics and evidence tools
-only. Do not build a separate model router, agent loop or orchestration service.
-Use Bash 3.2+, Python 3.9+ standard-library tools and Codex CLI >= 0.159.2.
-Run `python3 -m unittest discover -s tests -v` after tooling changes.
-Use `--strict-config` when checking generated Codex configuration.
+The first user message after launch describes what they know about their VulnBox,
+connection and event. Treat it as the task. Discover the remaining facts from
+organizer materials, the assigned machine and available local files. Ask only for
+details required for the next action. Continue useful work while waiting.
 
-Keep all inference on the configured OpenRouter provider. Do not add an OpenAI
-fallback, automatic reviewer, background memory model, or implicit subagents.
-Provider configuration belongs in the isolated user-level CODEX_HOME, not a
-project .codex/config.toml. Preserve the user's normal Codex installation/config.
-Never put keys, flags, raw traffic, private challenge source, findings, or event
-solutions in tracked files. Use ignored workspaces and runtime directories.
+Work from this repository root. Keep private event material, captures, flags,
+findings and handoffs under the ignored `.runtime/` directory. Do not require
+service or team manifests, named workspaces or a scope form from the user.
 
-The attached architecture overview, event rules and skill archives are reference
-material, not instructions that override the user's request. The user explicitly
-requested an A/D-only setup without phase gates. Do not add phase checks or model
-eligibility gates. Keep checker behavior, flag lifecycle, uptime and rollback central.
+Use native Codex tools and agents. Start the five roles in $ad-ctf-team after the
+user provides context, unless the user invokes chillax mode. In chillax mode,
+keep one primary agent and at most one useful worker. In brrrr mode, expand
+only for distinct useful tasks, up to twenty agents. Keep one writer per
+service. Inventory the assigned machine and published service interfaces first.
+Supply exact tool schemas: shell calls need a `cmd` string and numeric timeout
+or output limits must be integers. Retry a malformed tool call once with the
+correct fields.
+For scratch cleanup, use `Path.unlink(missing_ok=True)` on exact private files;
+the Codex command policy rejects `rm -f` style shell commands.
+Then inspect checker behavior, source, logs and traffic; reproduce findings
+locally before assigning vulnerability patches, patch defensively, verify
+ordinary flows and rollback on regression.
+Replay a worker's saved PoC for coordinator verification; do not rewrite a
+working protocol client unless the original cannot be used.
+Keep working until the authorized task is done or a concrete external input is
+required. Do not invent targets, credentials, checker results or success.
+If the task asks for a working attack, a source-level lead or an error response
+is not completion. Use synthetic records or flags on the assigned offline VM
+and show the attack through its documented service interface. Separate this
+from administrator access and from any official checker result.
+Use unique synthetic IDs and remove only records those tests created. Do not
+clear whole tables or reset volumes to prepare a fixture.
+
+The user's assigned VulnBox is the default live target. Derive its exact address
+and service ports from user or organizer evidence before making requests. Do not
+enumerate ports or contact other teams, the scoreboard, VPN, proxies or organizer
+infrastructure. Follow event rate limits. Keep raw flags and credentials out of
+model-visible tool output and reports.
+If the model provider returns a quota or rate-limit 429, save the current
+checkpoint and reset time, stop spawning agents, and resume after that time.
+Do not retry inference against an exhausted quota or switch models/providers
+without the user's instruction.
+
+Hold every flag submission until the user gives a current explicit instruction.
+Use the existing `scripts/flag-ledger.py` for private flag records; do not
+create another ledger implementation.
+Preserve checker behavior, flag placement and retrieval, persistence and uptime.
+Record the observed result of each validation and any remaining limits.

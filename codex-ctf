@@ -4,11 +4,7 @@ set -euo pipefail
 CTF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Pass tooling subcommands straight through instead of treating them as a prompt.
 case "${1:-}" in
-  help|-h|--help|setup|doctor|models|init|smoke|team|brrr|run|audit|traffic|patch)
+  help|-h|--help|setup|doctor|models|smoke|deploy|resume|team|brrrr|run|audit|traffic|patch)
     exec "$CTF_ROOT/bin/ctf-codex" "$@" ;;
 esac
-CTF_WORKSPACE="$CTF_ROOT/workspaces/default"
-if [ ! -d "$CTF_WORKSPACE" ]; then
-  "$CTF_ROOT/bin/ctf-codex" init default >/dev/null
-fi
-exec "$CTF_ROOT/bin/ctf-codex" team --workspace "$CTF_WORKSPACE" "$@"
+exec "$CTF_ROOT/bin/ctf-codex" team "$@"

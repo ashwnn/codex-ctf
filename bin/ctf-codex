@@ -23,24 +23,30 @@ default_model() {
     "$CTF_ROOT/config/codex/config.toml" | head -n 1
 }
 require_codex() {
-  command -v codex >/dev/null || fail 'Install Codex CLI >= 0.159.2.'
-  local CTF_VERSION_OUTPUT CTF_MAJOR CTF_MINOR CTF_PATCH
-  CTF_VERSION_OUTPUT="$(codex --version 2>/dev/null)" || fail 'Could not read Codex CLI version.'
-  if [[ ! "$CTF_VERSION_OUTPUT" =~ ([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
-    fail "Could not parse Codex CLI version: $CTF_VERSION_OUTPUT"
-  fi
-  CTF_MAJOR=$((10#${BASH_REMATCH[1]}))
-  CTF_MINOR=$((10#${BASH_REMATCH[2]}))
-  CTF_PATCH=$((10#${BASH_REMATCH[3]}))
-  if [ "$CTF_MAJOR" -lt 0 ] || { [ "$CTF_MAJOR" -eq 0 ] && [ "$CTF_MINOR" -lt 159 ]; } || \
-     { [ "$CTF_MAJOR" -eq 0 ] && [ "$CTF_MINOR" -eq 159 ] && [ "$CTF_PATCH" -lt 2 ]; }; then
-    fail "Codex CLI >= 0.159.2 is required; found $CTF_VERSION_OUTPUT."
-  fi
+  local CTF_CANDIDATE CTF_VERSION_OUTPUT CTF_MAJOR CTF_MINOR CTF_PATCH
+  for CTF_CANDIDATE in "$(command -v codex 2>/dev/null || true)" \
+    "$HOME"/AppData/Local/OpenAI/Codex/bin/*/codex.exe; do
+    [ -x "$CTF_CANDIDATE" ] || continue
+    CTF_VERSION_OUTPUT="$("$CTF_CANDIDATE" --version 2>/dev/null)" || continue
+    [[ "$CTF_VERSION_OUTPUT" =~ ([0-9]+)\.([0-9]+)\.([0-9]+) ]] || continue
+    CTF_MAJOR=$((10#${BASH_REMATCH[1]}))
+    CTF_MINOR=$((10#${BASH_REMATCH[2]}))
+    CTF_PATCH=$((10#${BASH_REMATCH[3]}))
+    if [ "$CTF_MAJOR" -gt 0 ] || [ "$CTF_MINOR" -gt 159 ] || \
+       { [ "$CTF_MINOR" -eq 159 ] && [ "$CTF_PATCH" -ge 2 ]; }; then
+      CTF_CODEX_BIN="$CTF_CANDIDATE"
+      return
+    fi
+  done
+  fail 'Install Codex CLI >= 0.159.2.'
 }
 require_python() {
-  command -v python3 >/dev/null || fail 'Python 3.9+ is required.'
+  CTF_PYTHON=python3
   local CTF_PY_VERSION CTF_PY_MAJOR CTF_PY_MINOR
-  CTF_PY_VERSION="$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')" || fail 'Could not read Python 3 version.'
+  CTF_PY_VERSION="$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null)" || {
+    CTF_PYTHON=python
+    CTF_PY_VERSION="$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null)" || fail 'Python 3.9+ is required.'
+  }
   if [[ ! "$CTF_PY_VERSION" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
     fail "Could not parse Python version: $CTF_PY_VERSION"
   fi
@@ -51,33 +57,9 @@ require_python() {
   fi
   [ "${1:-}" = quiet ] || printf 'Python %s: minimum requirement met\n' "$CTF_PY_VERSION"
 }
-# Project-local .codex/config.toml is loaded for trusted projects, and a
-# workspace inherits the repository root's trust. Untrusted challenge source is
-# agent-writable there, so drop any planted project config before every launch.
-sanitize_project_config() {
-  local CTF_DIR="$1" CTF_REAL_DIR CTF_REAL_WORKSPACES
-  [ -n "$CTF_DIR" ] && [ -f "$CTF_DIR/.codex/config.toml" ] || return 0
-  [ ! -L "$CTF_DIR" ] || fail 'Workspace path is a symlink; refusing to modify project config.'
-  [ ! -L "$CTF_DIR/.codex" ] || fail 'Workspace .codex path is a symlink; refusing to modify its target.'
-  [ ! -L "$CTF_ROOT/workspaces" ] || fail 'Managed workspaces root is a symlink; refusing project-config cleanup.'
-  CTF_REAL_DIR="$(cd "$CTF_DIR" 2>/dev/null && pwd -P)" || fail 'Cannot resolve workspace path.'
-  CTF_REAL_WORKSPACES=''
-  if [ -d "$CTF_ROOT/workspaces" ]; then
-    CTF_REAL_WORKSPACES="$(cd "$CTF_ROOT/workspaces" 2>/dev/null && pwd -P)" || fail 'Cannot resolve managed workspace root.'
-  fi
-  if [ -n "$CTF_REAL_WORKSPACES" ]; then
-    case "$CTF_REAL_DIR/" in
-      "$CTF_REAL_WORKSPACES"/*)
-        # Remove only the project config Codex would load; preserve all other
-        # project-local Codex assets and user files.
-        rm -f "$CTF_REAL_DIR/.codex/config.toml"
-        rmdir "$CTF_REAL_DIR/.codex" 2>/dev/null || true
-        ;;
-      *) fail 'Workspace contains .codex/config.toml outside managed workspaces; move the workspace under workspaces/ or remove that config yourself.' ;;
-    esac
-  else
-    fail 'Workspace contains .codex/config.toml outside managed workspaces; move the workspace under workspaces/ or remove that config yourself.'
-  fi
+reject_project_config() {
+  [ ! -e "$CTF_ROOT/.codex/config.toml" ] && [ ! -L "$CTF_ROOT/.codex/config.toml" ] || \
+    fail 'Remove .codex/config.toml from this repository before launch; it can override the isolated provider.'
 }
 write_config() {
   # Atomic install so a concurrent Codex process never reads a partial config.
@@ -116,7 +98,7 @@ setup() {
       CTF_SKILL_TOML="$(toml_escape "$CTF_HOME/skills/.system/$CTF_SKILL/SKILL.md")"
       printf '\n[[skills.config]]\npath = "%s"\nenabled = false\n' "$CTF_SKILL_TOML"
     done
-    # This launcher configures the repository and workspaces the user requested.
+    # Trust this repository so its AGENTS.md is loaded in the Codex session.
     printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "$CTF_TOML_ROOT"
   } | write_config "$CTF_HOME/config.toml"
   # Replace managed assets atomically in place. Never remove assets another
@@ -143,16 +125,17 @@ setup() {
 }
 usage() {
   cat <<'EOF'
-Usage: bin/ctf-codex setup | doctor | models [MODEL] | models --zdr MODEL... | init SERVICE | smoke
+Usage: ./codex-ctf [PROMPT]
+       bin/ctf-codex setup | doctor | models [MODEL] | models --zdr MODEL... | smoke
        bin/ctf-codex deploy --config PRIVATE_JSON COMMAND [OPTIONS]
-       bin/ctf-codex [team|brrr|run|audit|traffic|patch] [OPTIONS] [PROMPT]
+       bin/ctf-codex [team|brrrr|run|audit|traffic|patch] [OPTIONS] [PROMPT]
        bin/ctf-codex resume [OPTIONS] [--last|SESSION_ID] [PROMPT]
-Options: --workspace DIR --profile NAME --model VENDOR/MODEL --exec --json
-         --output FILE --effort low|medium|high|xhigh|max --network
+Options: --profile NAME --model VENDOR/MODEL --exec --json
+         --output FILE --effort low|medium|high|xhigh|max
 Profiles: team, cheap, audit, traffic, patch, deepseek-cheap, deepseek-audit
 `run` is a raw single-agent launch of the cheap profile with no workflow prompt.
-`brrr` is a native Codex team surge (up to 20 agents).
-In the TUI use /prompts:audit, /prompts:traffic, /prompts:patch, /prompts:team or /prompts:brrr.
+`brrrr` is a native Codex team surge (up to 20 agents).
+In the TUI use /prompts:brrrr or /prompts:chillax to switch modes.
 No phase gates. No agent loop in this script. Personal Codex config is untouched.
 EOF
 }
@@ -161,29 +144,16 @@ CTF_COMMAND="${1:-help}"
 if [ "$#" -gt 0 ]; then shift; fi
 case "$CTF_COMMAND" in
   help|-h|--help) usage; exit 0 ;;
-  init)
-    CTF_SERVICE="${1:-}"
-    [[ "$CTF_SERVICE" =~ ^[a-z0-9][a-z0-9_-]{0,63}$ ]] || fail 'Use a simple lowercase service name.'
-    CTF_WORKSPACE="$CTF_ROOT/workspaces/$CTF_SERVICE"
-    [ ! -e "$CTF_WORKSPACE" ] || fail 'Workspace exists; preserving existing evidence.'
-    mkdir -p "$CTF_WORKSPACE"/{source,evidence/raw,evidence/derived,findings,patches,verification,coordination/inbox,flags/inbox}
-    sed "s/@SERVICE@/$CTF_SERVICE/g" "$CTF_ROOT/templates/service.toml" > "$CTF_WORKSPACE/service.toml"
-    sed "s/@SERVICE@/$CTF_SERVICE/g" "$CTF_ROOT/templates/team.toml" > "$CTF_WORKSPACE/team.toml"
-    sed "s/@SERVICE@/$CTF_SERVICE/g" "$CTF_ROOT/templates/checker-contract.md" > "$CTF_WORKSPACE/verification/checker-contract.md"
-    sed "s/@SERVICE@/$CTF_SERVICE/g" "$CTF_ROOT/templates/patch-verification.md" > "$CTF_WORKSPACE/verification/patch-verification-template.md"
-    cp "$CTF_ROOT/templates/service-AGENTS.md" "$CTF_WORKSPACE/AGENTS.md"
-    printf '%s\n' "$CTF_WORKSPACE"; exit 0 ;;
   setup) setup; printf 'Installed isolated config and skills: %s\n' "$CTF_HOME"; exit 0 ;;
   doctor)
     require_python
     setup
-    env CODEX_HOME="$CTF_HOME" codex --version
+    env CODEX_HOME="$CTF_HOME" "$CTF_CODEX_BIN" --version
     mkdir -p "$CTF_ROOT/.runtime/validation"
-    # Strict config validation with inference impossible (auth is forced to fail).
+    # Strict config validation without credentials, so this cannot infer.
     for CTF_PROFILE in $CTF_PROFILES; do
-      CTF_OUT="$(env CODEX_HOME="$CTF_HOME" codex --strict-config --profile "$CTF_PROFILE" exec \
+      CTF_OUT="$(env -u OPENROUTER_API_KEY CODEX_HOME="$CTF_HOME" "$CTF_CODEX_BIN" --strict-config --profile "$CTF_PROFILE" exec \
         --skip-git-repo-check --sandbox read-only \
-        -c 'model_providers.openrouter.auth.command="/bin/false"' \
         'Configuration validation only.' 2>&1)" || true
       case "$CTF_OUT" in
         *'Error loading config.toml'*)
@@ -194,7 +164,7 @@ case "$CTF_COMMAND" in
     done
     # Native prompt and skill discovery, no inference.
     for CTF_PROFILE in $CTF_PROFILES; do
-      if ! env CODEX_HOME="$CTF_HOME" codex --profile "$CTF_PROFILE" debug prompt-input \
+      if ! env CODEX_HOME="$CTF_HOME" "$CTF_CODEX_BIN" --profile "$CTF_PROFILE" debug prompt-input \
           'Validate native prompt and skill discovery; no inference.' \
           > "$CTF_ROOT/.runtime/validation/$CTF_PROFILE.json" \
           2> "$CTF_ROOT/.runtime/validation/$CTF_PROFILE.stderr"; then
@@ -212,7 +182,7 @@ case "$CTF_COMMAND" in
     [ "$CTF_EXPECTED_SKILLS" = "$CTF_INSTALLED_SKILLS" ] || fail "Installed skills ($CTF_INSTALLED_SKILLS) do not match source ($CTF_EXPECTED_SKILLS)."
     printf 'Managed assets: %s agents, %s skills\n' "$CTF_INSTALLED_AGENTS" "$CTF_INSTALLED_SKILLS"
     # Native environment diagnosis (informational; platform-specific warnings allowed).
-    env CODEX_HOME="$CTF_HOME" codex doctor --no-color --summary || \
+    env CODEX_HOME="$CTF_HOME" "$CTF_CODEX_BIN" doctor --no-color --summary || \
       printf 'ctf-codex: native doctor reported warnings; review above.\n' >&2
     for CTF_TOOL in docker tshark capinfos rg git; do
       command -v "$CTF_TOOL" || printf '%s: optional tool unavailable\n' "$CTF_TOOL"
@@ -223,32 +193,30 @@ case "$CTF_COMMAND" in
     if [ "$#" -eq 0 ]; then
       set -- "$(default_model)"
     fi
-    exec python3 "$CTF_ROOT/scripts/model-info.py" "$@" ;;
+    exec "$CTF_PYTHON" "$CTF_ROOT/scripts/model-info.py" "$@" ;;
   deploy)
     require_python quiet
-    exec python3 "$CTF_ROOT/scripts/deployment.py" "$@" ;;
+    exec "$CTF_PYTHON" "$CTF_ROOT/scripts/deployment.py" "$@" ;;
   smoke)
     mkdir -p "$CTF_ROOT/.runtime/smoke"
     printf 'CTF_SMOKE_LOCAL_FILE_OK\n' > "$CTF_ROOT/.runtime/smoke/probe.txt"
     rm -f "$CTF_ROOT/.runtime/smoke/verified.txt" "$CTF_ROOT/.runtime/smoke/answer.txt"
-    "$CTF_ROOT/bin/ctf-codex" run --workspace "$CTF_ROOT/.runtime/smoke" --exec \
+    "$CTF_ROOT/bin/ctf-codex" run --exec \
       --output "$CTF_ROOT/.runtime/smoke/answer.txt" \
-      'Use the shell tool to read probe.txt. Use apply_patch to create verified.txt containing exactly CTF_SMOKE_LOCAL_FILE_OK followed by a newline. Read verified.txt with the shell tool. Reply exactly CTF_SMOKE_OK. Do not inspect other files or run other commands.'
+      'Use the shell tool to read .runtime/smoke/probe.txt. Use apply_patch to create .runtime/smoke/verified.txt containing exactly CTF_SMOKE_LOCAL_FILE_OK followed by a newline. Read that file with the shell tool. Reply exactly CTF_SMOKE_OK. Do not inspect other files or run other commands.'
     cmp -s "$CTF_ROOT/.runtime/smoke/probe.txt" "$CTF_ROOT/.runtime/smoke/verified.txt" || \
       fail 'Smoke did not reproduce the local file content.'
     [ "$(cat "$CTF_ROOT/.runtime/smoke/answer.txt")" = 'CTF_SMOKE_OK' ] || fail 'Smoke final answer mismatch.'
-    printf 'Verified OpenRouter inference, shell, apply_patch and tool-result replay.\n'; exit 0 ;;
-  team|brrr|run|audit|traffic|patch|resume) ;;
+    printf 'Verified OpenRouter inference, local shell and file-result replay.\n'; exit 0 ;;
+  team|brrrr|run|audit|traffic|patch|resume) ;;
   *) usage; fail "Unknown command: $CTF_COMMAND" ;;
 esac
 
 CTF_PROFILE=cheap
-case "$CTF_COMMAND" in team|brrr) CTF_PROFILE=team ;; audit|traffic|patch) CTF_PROFILE="$CTF_COMMAND" ;; esac
+case "$CTF_COMMAND" in team|brrrr) CTF_PROFILE=team ;; audit|traffic|patch) CTF_PROFILE="$CTF_COMMAND" ;; esac
 if [ "$CTF_COMMAND" = resume ]; then CTF_PROFILE=team; fi
-CTF_WORKSPACE="$CTF_ROOT/workspaces/default"
 CTF_EXEC=false
 CTF_JSON=false
-CTF_NETWORK=false
 CTF_OUTPUT=''
 CTF_MODEL=''
 CTF_EFFORT=''
@@ -258,10 +226,9 @@ CTF_RESUME_ARGS=()
 CTF_RESUME_SELECTOR=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --workspace|--profile|--output|--model|--effort)
+    --profile|--output|--model|--effort)
       [ "$#" -ge 2 ] || fail "Missing value for $1"
       case "$1" in
-        --workspace) CTF_WORKSPACE="$2" ;;
         --profile) CTF_PROFILE="$2"; CTF_PROFILE_GIVEN=true ;;
         --output) CTF_OUTPUT="$2" ;;
         --model) CTF_MODEL="$2" ;;
@@ -269,7 +236,6 @@ while [ "$#" -gt 0 ]; do
       esac
       shift 2 ;;
     --exec) CTF_EXEC=true; shift ;;
-    --network) CTF_NETWORK=true; shift ;;
     --json) CTF_JSON=true; shift ;;
     --)
       shift
@@ -305,26 +271,22 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
-[ "$CTF_COMMAND" != brrr ] || {
-  [ "$CTF_PROFILE_GIVEN" = false ] || printf 'ctf-codex: brrr always runs the team profile; ignoring --profile.\n' >&2
+[ "$CTF_COMMAND" != brrrr ] || {
+  [ "$CTF_PROFILE_GIVEN" = false ] || printf 'ctf-codex: brrrr always runs the team profile; ignoring --profile.\n' >&2
   CTF_PROFILE=team
 }
 case "$CTF_PROFILE" in team|cheap|audit|traffic|patch|deepseek-cheap|deepseek-audit) ;; *) fail 'Unknown profile.' ;; esac
-if [ ! -d "$CTF_WORKSPACE" ] && [ "$CTF_WORKSPACE" = "$CTF_ROOT/workspaces/default" ]; then
-  "$CTF_ROOT/bin/ctf-codex" init default >/dev/null
-fi
-[ -d "$CTF_WORKSPACE" ] || fail 'Workspace does not exist; use init or --workspace.'
 if [ -n "$CTF_EFFORT" ]; then
   case "$CTF_EFFORT" in low|medium|high|xhigh|max) ;; *) fail 'Unknown reasoning effort.' ;; esac
 fi
 if [ -n "$CTF_MODEL" ]; then
   [[ "$CTF_MODEL" =~ ^[a-zA-Z0-9_.~-]+/[a-zA-Z0-9_.:~-]+$ ]] || fail 'Use a complete OpenRouter slug.'
 fi
-if [ "$CTF_COMMAND" = brrr ]; then
-  CTF_PROMPT="$(cat "$CTF_ROOT/prompts/brrr.md")
+if [ "$CTF_COMMAND" = brrrr ]; then
+  CTF_PROMPT="$(cat "$CTF_ROOT/prompts/brrrr.md")
 
 $CTF_PROMPT"
-elif [ "$CTF_COMMAND" != run ]; then
+elif [ "$CTF_COMMAND" != run ] && [ "$CTF_COMMAND" != team ]; then
   if [ "$CTF_COMMAND" != resume ]; then
     CTF_PROMPT="$(cat "$CTF_ROOT/prompts/$CTF_COMMAND.md")
 
@@ -332,40 +294,49 @@ $CTF_PROMPT"
   fi
 fi
 setup
-"$CTF_ROOT/bin/openrouter-token" >/dev/null || fail 'OpenRouter credential unavailable.'
-sanitize_project_config "$CTF_WORKSPACE"
-CTF_ARGS=(--no-daemon --strict-config --cd "$CTF_WORKSPACE" --profile "$CTF_PROFILE"
+[ -n "${OPENROUTER_API_KEY:-}" ] || fail 'Export OPENROUTER_API_KEY before launch.'
+reject_project_config
+CTF_ARGS=(--no-daemon --strict-config --cd "$CTF_ROOT" --profile "$CTF_PROFILE"
   -c 'model_provider="openrouter"' -c 'model_providers.openrouter.base_url="https://openrouter.ai/api/v1"')
-if [ "$CTF_COMMAND" = team ] || [ "$CTF_COMMAND" = brrr ]; then
+if [ "$CTF_COMMAND" = team ] || [ "$CTF_COMMAND" = brrrr ]; then
   CTF_ARGS+=(-c 'features.multi_agent=true' -c 'agents.enabled=true' -c 'agents.max_concurrent_threads_per_session=20')
 fi
 [ -z "$CTF_MODEL" ] || CTF_ARGS+=(--model "$CTF_MODEL")
 [ -z "$CTF_EFFORT" ] || CTF_ARGS+=(-c "model_reasoning_effort=\"$CTF_EFFORT\"")
-$CTF_NETWORK && CTF_ARGS+=(-c 'sandbox_workspace_write.network_access=true')
-if [ "$CTF_COMMAND" = team ] || [ "$CTF_COMMAND" = brrr ]; then
-  mkdir -p "$CTF_WORKSPACE/coordination/inbox" "$CTF_WORKSPACE/flags/inbox"
-  if [ "$CTF_COMMAND" = brrr ]; then
+if [ "$CTF_COMMAND" = team ] || [ "$CTF_COMMAND" = brrrr ]; then
+  mkdir -p "$CTF_ROOT/.runtime/coordination/inbox" "$CTF_ROOT/.runtime/flags/inbox"
+  if [ "$CTF_COMMAND" = brrrr ]; then
     CTF_TEAM_SCOPE='Surge launch: up to twenty spawned agents are authorized; scale only for distinct useful backlog.'
   else
     CTF_TEAM_SCOPE='Team launch: start five workers initially and expand only when distinct useful backlog warrants it.'
   fi
-  CTF_PROMPT="$CTF_PROMPT
+  if [ -n "$CTF_PROMPT" ]; then
+    CTF_PROMPT="$CTF_PROMPT
 
 Repository tooling root: $CTF_ROOT
 Use scripts at that absolute root. $CTF_TEAM_SCOPE"
+  fi
 fi
 if [ "$CTF_COMMAND" = resume ]; then
-  $CTF_EXEC && fail 'resume is interactive; omit --exec.'
-  $CTF_JSON && fail 'resume does not support --json.'
-  [ -z "$CTF_OUTPUT" ] || fail 'resume does not support --output.'
-  CTF_ARGS+=(resume "${CTF_RESUME_ARGS[@]}")
+  if $CTF_EXEC; then
+    [ "$CTF_RESUME_SELECTOR" = true ] || fail 'resume --exec requires --last or a session ID.'
+    CTF_ARGS+=(exec --sandbox workspace-write --color never --skip-git-repo-check resume)
+    $CTF_JSON && CTF_ARGS+=(--json)
+    [ -z "$CTF_OUTPUT" ] || CTF_ARGS+=(--output-last-message "$CTF_OUTPUT")
+    CTF_ARGS+=("${CTF_RESUME_ARGS[@]}")
+  else
+    $CTF_JSON && fail 'interactive resume does not support --json.'
+    [ -z "$CTF_OUTPUT" ] || fail 'interactive resume does not support --output.'
+    CTF_ARGS+=(resume "${CTF_RESUME_ARGS[@]}")
+  fi
 elif $CTF_EXEC; then
-  CTF_ARGS+=(exec --ephemeral --color never --skip-git-repo-check)
+  CTF_ARGS+=(exec --sandbox workspace-write --color never --skip-git-repo-check)
   $CTF_JSON && CTF_ARGS+=(--json)
   [ -z "$CTF_OUTPUT" ] || CTF_ARGS+=(--output-last-message "$CTF_OUTPUT")
 elif $CTF_JSON || [ -n "$CTF_OUTPUT" ]; then
   fail '--json and --output require --exec.'
 fi
-[ -z "$CTF_PROMPT" ] || CTF_ARGS+=("$CTF_PROMPT")
-# Credential loading lives in Codex's auth helper, not the agent shell environment.
-exec env -u OPENAI_API_KEY -u CODEX_API_KEY CODEX_HOME="$CTF_HOME" codex "${CTF_ARGS[@]}"
+[ -z "$CTF_PROMPT" ] || CTF_ARGS+=(-- "$CTF_PROMPT")
+# The provider reads OPENROUTER_API_KEY; tool subprocesses filter it via config.
+exec env -u OPENAI_API_KEY -u CODEX_API_KEY \
+  CODEX_HOME="$CTF_HOME" "$CTF_CODEX_BIN" "${CTF_ARGS[@]}"
