@@ -16,6 +16,9 @@ where feasible. This record is evidence, not an automatic approval gate.
 | Candidate source revision | Unknown |
 | Image / binary digest before and after | Unknown |
 | Patch and test evidence paths | Unknown |
+| Stable deployment checkpoint and artifact digest | Unknown |
+| Local deployment check evidence ID | Unknown |
+| Human external observation: exact revision, up/down/unknown, UTC time/tick | Unknown |
 | Shared-state or flag-store backup reference | Unknown |
 
 ## Baseline and candidate comparison
@@ -54,6 +57,8 @@ measurements with the sample size and window; do not invent pass thresholds.
   Unknown
 - Rollback performed? If so, time, result, and evidence:
   Not run
+- Predeployment notice and planned maintenance window; human leaderboard watcher:
+  Unknown
 
 ## Outcome and follow-up
 

@@ -29,3 +29,8 @@ create restrictions that prevent legitimate checker behavior. Share actionable
 evidence with audit/traffic and coordinator, and record applied revision plus
 verification in the shared finding. No phase gates or automatic reviewer.
 
+Use $ad-ctf-deployment for exact deployed-commit/artifact checkpoints, advance
+operator notices, human leaderboard confirmation and explicit rollback plans.
+The deterministic `bin/ctf-codex deploy` CLI also works without invoking Codex.
+Local functional checks cannot establish external checker validity; stable
+promotion requires the human's fresh observation of the same deployment.

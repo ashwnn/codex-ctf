@@ -1,0 +1,24 @@
+{
+  "repository": "/absolute/path/to/own-service-repository",
+  "service": "my-service",
+  "environment": "defended",
+  "identity_argv": ["/opt/defense/runtime-identity"],
+  "checks": [
+    {"name": "ordinary-create-read", "kind": "functional", "argv": ["/opt/defense/check-ordinary-flows"]},
+    {"name": "persistent-old-and-new-records", "kind": "functional", "argv": ["/opt/defense/check-persistence"]}
+  ],
+  "rollback_argv": ["/opt/defense/restore-service-artifact"],
+  "adapter_files": [],
+  "stability": {
+    "samples": 3,
+    "interval_seconds": 30,
+    "min_window_seconds": 60,
+    "max_age_seconds": 600,
+    "timeout_seconds": 15,
+    "human_hold_seconds": 240
+  },
+  "watch": {
+    "remote": "https://github.com/YOUR-ORG/YOUR-OWN-SERVICE.git",
+    "branch": "main"
+  }
+}

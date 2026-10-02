@@ -144,6 +144,7 @@ setup() {
 usage() {
   cat <<'EOF'
 Usage: bin/ctf-codex setup | doctor | models [MODEL] | models --zdr MODEL... | init SERVICE | smoke
+       bin/ctf-codex deploy --config PRIVATE_JSON COMMAND [OPTIONS]
        bin/ctf-codex [team|brrr|run|audit|traffic|patch] [OPTIONS] [PROMPT]
        bin/ctf-codex resume [OPTIONS] [--last|SESSION_ID] [PROMPT]
 Options: --workspace DIR --profile NAME --model VENDOR/MODEL --exec --json
@@ -223,6 +224,9 @@ case "$CTF_COMMAND" in
       set -- "$(default_model)"
     fi
     exec python3 "$CTF_ROOT/scripts/model-info.py" "$@" ;;
+  deploy)
+    require_python quiet
+    exec python3 "$CTF_ROOT/scripts/deployment.py" "$@" ;;
   smoke)
     mkdir -p "$CTF_ROOT/.runtime/smoke"
     printf 'CTF_SMOKE_LOCAL_FILE_OK\n' > "$CTF_ROOT/.runtime/smoke/probe.txt"
