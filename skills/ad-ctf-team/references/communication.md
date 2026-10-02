@@ -7,9 +7,9 @@ messaging tool. They could not directly send PING/PONG. Use the shared
 workspace and primary relay for peer communication; do not claim direct native
 sibling messaging is available until a future client/model test proves it.
 
-The coordinator writes `coordination/roster.md` with role, native ID, assignment
-and handoff path. Each worker owns `coordination/<role>.md`. For a peer-directed
-message, create a small file under `coordination/inbox/<recipient-role>/` named
+The coordinator writes `.runtime/coordination/roster.md` with role, native ID, assignment
+and handoff path. Each worker owns `.runtime/coordination/<role>.md`. For a peer-directed
+message, create a small file under `.runtime/coordination/inbox/<recipient-role>/` named
 `<UTC-basic-time>-<sender-role>-<finding-id>.md`. Use a unique suffix if needed.
 Include recipient, sender, service, finding ID, UTC time, urgency, evidence path,
 observation, confidence, requested action and response path. Never include raw
@@ -26,8 +26,8 @@ worker returns or new evidence arrives, and delivers urgent messages to active
 workers with native tools. Files are a shared Codex workspace artifact, not
 an external daemon, router or agent loop.
 
-The sole flagkeeper owns `flags/ledger.sqlite3`. Attack agents may write only
-unique JSONL files under `flags/inbox/`. The flagkeeper imports those files and
+The sole flagkeeper owns `.runtime/flags/ledger.sqlite3`. Attack agents may write only
+unique JSONL files under `.runtime/flags/inbox/`. The flagkeeper imports those files and
 returns counts; the coordinator must not forward raw flag values. Keep one
 code/deployment writer per service, and use the board to prevent duplicate
 service/team attack shards.
