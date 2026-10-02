@@ -46,13 +46,14 @@ The default model is `deepseek/deepseek-v4.1-flash`, selected as a provisional t
 | Part | Purpose |
 | --- | --- |
 | `config/codex/` and `config/agents/` | OpenRouter provider, task profiles and native specialist roles |
-| `prompts/` and `skills/` | Team, audit, traffic, patch and surge workflows; 15 task skills selected by Codex or invoked with `$ad-ctf-*` |
+| `prompts/` and `skills/` | Team, audit, traffic, patch and surge workflows; task skills selected by Codex or invoked with `$ad-ctf-*` |
 | `templates/` | Service context, team settings, workspace instructions, a checker contract and a per-change patch verification record |
 | `scripts/pcap-index.py` | Bounded PCAP metadata extraction with frame and stream provenance; no packet bodies |
 | `scripts/flag-ledger.py` | Private flag deduplication, expiry planning and receipt tracking |
 | `scripts/submit-http.py` | Optional transport adapter after matching the published API and testing locally |
 | `scripts/tulip-replay.py` | One reviewed HTTP request to one exact published target, with private flag handoff and no submission |
 | `scripts/operations-drill.py` | Loopback-only rehearsal of checker-shaped responses, persistence, restart and source rollback |
+| `scripts/deployment.py` | Own-service immutable checkpoints, human external confirmation, explicit rollback and pending remote observations |
 | `bin/ctf-codex` | Setup, launch, model checks, diagnostics and smoke test |
 
 The skills cover inventory, service and code audit, traffic and Docker logs, reproduction, binary and crypto analysis, PoC development, defense, team coordination and flagkeeping. Use `/skills` in Codex to browse them. Use `/prompts:team`, `/prompts:audit`, `/prompts:traffic`, `/prompts:patch` or `/prompts:brrr` for the installed prompts.
@@ -106,6 +107,15 @@ bin/ctf-codex smoke                        # Live model and tool-loop check; may
 python3 scripts/operations-drill.py       # Local checker/persistence/rollback rehearsal; no inference
 python3 -m unittest discover -s tests -v
 ```
+
+For human and agent deployment recovery, use `bin/ctf-codex deploy --help` and
+the [checkpoint configuration and human-patch runbook](docs/deployment-checkpoints.md).
+The deterministic CLI requires no Codex/model invocation. It records the exact
+running commit/artifact, configured functional checks and a human's external
+leaderboard observation before creating an immutable `stable-deploy-NNN` tag.
+Optional remote polling records pending commits only. `$ad-ctf-deployment` covers
+predeployment notices, explicit rollback, failure recovery and unconfirmed
+external status; local health cannot establish an external checker pass.
 
 For flag operations, the ledger defaults to `flags/ledger.sqlite3`; pass a
 workspace-local database path for a named service. `review` and `receipts`
