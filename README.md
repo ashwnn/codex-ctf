@@ -1,8 +1,10 @@
 # codex-ctf
 
-Codex CLI configuration for an authorized attack/defense CTF. Codex runs the
-agent loop and tools; this repository supplies the OpenRouter configuration,
-specialist agents, skills and local evidence utilities.
+Codex CLI configuration for an authorized attack/defense CTF. The intended flow
+is simple: enter this repository, run Codex, then send what you know about your
+assigned VulnBox and event. Codex coordinates the investigation from there.
+This repository supplies the OpenRouter configuration, specialist agents, skills
+and private evidence utilities; Codex owns inference and tool use.
 
 ## Start
 
@@ -19,52 +21,78 @@ export OPENROUTER_API_KEY="..."
 ./codex-ctf
 ```
 
-The terminal UI opens without sending a prompt. Tell Codex what you know about
-your assigned VulnBox, connection, event rules and services in your first
-message. Give partial information if that is all you have. Codex derives the
-rest from available organizer material and the machine, starts its specialist
-team, and asks only when a required fact cannot be found. No `init` command,
-service manifest or named workspace is required.
+The launcher opens the Codex terminal UI without sending a prompt. In your first
+message, provide the assigned VulnBox address, connection details, event rules
+and known services. Partial information is fine. Codex derives what it can from
+organizer material and the assigned machine, then asks for any fact required to
+continue. There is no `init` step, required service manifest or named workspace.
 
-The launcher works from the repository root. It installs an isolated Codex
-configuration in ignored `.runtime/codex/` and stores private event artifacts
-under `.runtime/`, including session logs for per-agent token accounting. Your
-normal Codex configuration is unchanged. The default
-model is `stealth/space-bunny-alpha`; all default agents inherit it. Select a
-different OpenRouter model explicitly if that preview is unavailable. No
-provider fallback occurs.
+## How it works
 
-Free OpenRouter models have daily request limits. A long `/prompts:brrrr` run
-can exhaust them; the provider's 429 response includes the reset time. The
-harness stops at that limit and retains its session logs for continuation.
+![Codex CTF architecture: launcher, native agents, target, private artifacts and flag handling](docs/architecture.svg)
 
-Within the TUI, `/prompts:brrrr` switches to a points-first surge with more
-agents for distinct useful work. `/prompts:chillax` switches to a low-token
-workflow with the primary agent and at most one useful worker. Codex CLI names
-custom prompt commands `/prompts:name`; bare `/brrrr` and `/chillax` are not
-native slash commands.
+`./codex-ctf` starts the native Codex CLI at the repository root. The launcher
+installs the repository's profiles, 12 agents, 16 skills and prompts in an
+isolated `.runtime/codex/` home. It leaves your normal Codex configuration
+alone. It does not implement a separate agent loop.
 
-## Scope and flag handling
+After your first message, the primary agent establishes the exact authorized
+target and documented service interfaces. It starts bounded inventory, traffic,
+Docker log, code review and flagkeeper roles. They share short handoffs under
+ignored `.runtime/`; useful PoC, patch and verification work follows concrete
+findings. The team uses synthetic records to reproduce issues, checks normal
+flows and rollback after a patch, and records what was actually observed.
+
+Flags stay in the private ledger. Submission requires a separate, current
+instruction from you. Sessions and event evidence also remain under `.runtime/`
+so an interrupted run can be resumed without committing sensitive material.
+
+## Scope and modes
 
 The assigned VulnBox and its documented service interfaces are the default live
 scope. Codex verifies the exact address and ports before requests, and does not
 enumerate ports or contact other teams or event infrastructure. Command network
-access is enabled for the three-step workflow. These instructions do not enforce
-an outbound firewall; use an external allowlist when hard network containment is
-required. Captured flags stay private. Submission requires a separate, current
-instruction from you.
+access is enabled for this workflow. Prompt instructions are not an outbound
+firewall; use an external allowlist if hard network containment is required.
+
+The default OpenRouter model is `stealth/space-bunny-alpha`; default agents
+inherit it. Select another model explicitly if that preview is unavailable.
+There is no automatic provider fallback. A free-model 429 stops the run and
+retains sessions for continuation.
+
+Within the TUI, `/prompts:brrrr` expands distinct useful work, up to twenty
+agents. `/prompts:chillax` uses the primary agent and at most one worker.
+Codex CLI names custom prompt commands `/prompts:name`; bare `/brrrr` and
+`/chillax` are not native slash commands.
 
 ## Optional commands
 
 ```bash
 ./codex-ctf doctor                 # Validate local configuration without inference
-./codex-ctf models                 # Check the configured model and account metadata
+./codex-ctf models                 # Check configured model and account metadata
 ./codex-ctf smoke                  # Live model and local tool check
 ./codex-ctf resume --last          # Resume the last session interactively
 ./codex-ctf resume --exec --json SESSION_ID -- "Continue the saved task"
 ```
 
 `bin/ctf-codex` also exposes audit, traffic, patch, model selection and local
-deployment utilities. They use the same repository root and isolated Codex
-configuration. The checked-in `templates/` files are optional examples for
-checker and patch records; the user does not fill them before starting.
+deployment utilities. The checked-in `templates/` files are optional examples
+for checker and patch records.
+
+## Verification
+
+On 2026-10-02, the Python suite ran 71 tests with one optional `tshark` skip.
+It covered launcher dispatch and resume, provider isolation, evidence and flag
+tools, and deployment recovery with temporary repositories and dummy adapters.
+Shell syntax, seven strict Codex profiles, native prompt construction and diff
+whitespace checks also passed. In Ubuntu/WSL, a live smoke completed model
+inference, shell read, file write and replay; the TUI opened with Space Bunny.
+
+The full and `brrrr` loops were exercised on an authorized offline FAUST clone
+through four documented service interfaces. Synthetic IMC and LAMP attacks were
+reproduced, patched, rolled back and replayed with normal-flow checks. An ALF
+parser crash was confirmed, but flag access and RCE were not. A provider 429
+interrupted the ALF and Rufflecopter closeout, and `chillax` was not exercised
+live. No official checker, competition network, live flag submission or score
+was available, so these checks do not establish that every feature works in a
+competition. See [verification details](docs/verification.md).
