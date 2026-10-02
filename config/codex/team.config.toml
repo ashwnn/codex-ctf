@@ -1,4 +1,4 @@
-# Explicit A/D team launch: five workers initially; /brrr can use up to twenty.
+# Explicit A/D team launch: five workers initially; /brrrr can use up to twenty.
 # Other profiles remain single-agent. All workers inherit the OpenRouter provider.
 [features]
 multi_agent = true
