@@ -5,10 +5,11 @@ an isolated configuration and the repository's agents, skills and prompts under
 ignored `.runtime/codex/`. Codex owns inference, tool calls and native agent
 coordination. The launcher creates no service workspaces or required manifests.
 
-The default model is `stealth/space-bunny-alpha`; the default agents inherit it.
-OpenRouter reads `OPENROUTER_API_KEY` from the launch environment. Shell tools
-filter key, token and secret variables. Private event files stay under
-`.runtime/` and never enter Git.
+The default model is `deepseek/deepseek-v4.1-flash`; default agents inherit it.
+The `mimo` profile explicitly selects `xiaomi/mimo-v2.6-flash`. OpenRouter
+reads `OPENROUTER_API_KEY` from the launch environment. Shell tools filter key,
+token and secret variables. Private event files stay under `.runtime/` and
+never enter Git.
 
 The team profile permits up to twenty native agents. AGENTS.md asks for five
 bounded roles after the user's first context message. Native custom prompts

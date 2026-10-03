@@ -1,4 +1,0 @@
-model = "deepseek/deepseek-v4.1-flash"
-model_reasoning_effort = "high"
-tool_output_token_limit = 4000
-

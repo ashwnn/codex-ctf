@@ -4,7 +4,7 @@ set -euo pipefail
 umask 077
 CTF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CTF_HOME="$CTF_ROOT/.runtime/codex"
-CTF_PROFILES="team cheap audit traffic patch deepseek-cheap deepseek-audit"
+CTF_PROFILES="team cheap audit traffic patch mimo"
 CTF_SYSTEM_SKILLS="imagegen openai-docs skill-creator skill-installer"
 
 fail() { printf 'ctf-codex: %s\n' "$*" >&2; exit 2; }
@@ -132,7 +132,7 @@ Usage: ./codex-ctf [PROMPT]
        bin/ctf-codex resume [OPTIONS] [--last|SESSION_ID] [PROMPT]
 Options: --profile NAME --model VENDOR/MODEL --exec --json
          --output FILE --effort low|medium|high|xhigh|max
-Profiles: team, cheap, audit, traffic, patch, deepseek-cheap, deepseek-audit
+Profiles: team, cheap, audit, traffic, patch, mimo
 `run` is a raw single-agent launch of the cheap profile with no workflow prompt.
 `brrrr` is a native Codex team surge (up to 20 agents).
 In the TUI use /prompts:brrrr or /prompts:chillax to switch modes.
@@ -275,7 +275,7 @@ done
   [ "$CTF_PROFILE_GIVEN" = false ] || printf 'ctf-codex: brrrr always runs the team profile; ignoring --profile.\n' >&2
   CTF_PROFILE=team
 }
-case "$CTF_PROFILE" in team|cheap|audit|traffic|patch|deepseek-cheap|deepseek-audit) ;; *) fail 'Unknown profile.' ;; esac
+case "$CTF_PROFILE" in team|cheap|audit|traffic|patch|mimo) ;; *) fail 'Unknown profile.' ;; esac
 if [ -n "$CTF_EFFORT" ]; then
   case "$CTF_EFFORT" in low|medium|high|xhigh|max) ;; *) fail 'Unknown reasoning effort.' ;; esac
 fi

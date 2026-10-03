@@ -33,10 +33,9 @@ bin/ctf-codex run --workspace "$PWD/.runtime/model-eval/<model>/<task>" \
 ```
 
 The existing `smoke` command always uses the configured model; it is not a model
-override test. Do not use `Space Bunny Alpha` as the competition baseline: its
-temporary free preview is not a ZDR-eligible endpoint. Set OpenRouter account/key
-ZDR enforcement first, and check candidate endpoints with `bin/ctf-codex models
---zdr MODEL...`. That catalog read does not prove the account policy is active.
+override test. The competition has no model-eligibility or ZDR requirement.
+`bin/ctf-codex models --zdr MODEL...` remains an optional endpoint metadata
+check; it does not prove account-level data-retention settings.
 
 Score objective checks from the resulting files and command exit status. Record
 end-to-end elapsed time, tool calls, retries/corrections, OpenRouter billed cost,

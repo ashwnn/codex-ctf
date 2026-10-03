@@ -60,7 +60,7 @@ printf 'HOME=%s\nOPENAI=%s\nCODEX_KEY=%s\n' "$CODEX_HOME" "${OPENAI_API_KEY:-uns
         self.assertFalse((self.root / "workspaces").exists())
         self.assertTrue((self.root / ".runtime/flags/inbox").is_dir())
         config = (self.root / ".runtime/codex/config.toml").read_text()
-        self.assertIn('model = "stealth/space-bunny-alpha"', config)
+        self.assertIn('model = "deepseek/deepseek-v4.1-flash"', config)
         self.assertIn('trust_level = "trusted"', config)
 
     def test_modes_are_native_prompts_and_brrrr_uses_team_profile(self):
@@ -89,6 +89,13 @@ printf 'HOME=%s\nOPENAI=%s\nCODEX_KEY=%s\n' "$CODEX_HOME" "${OPENAI_API_KEY:-uns
                 args = self.capture.read_text().splitlines()
                 self.assertEqual(args[args.index("--profile") + 1], profile)
                 self.assertNotIn("features.multi_agent=true", args)
+
+        result = self.run_cli("run", "--profile", "mimo", "synthetic task")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        args = self.capture.read_text().splitlines()
+        self.assertEqual(args[args.index("--profile") + 1], "mimo")
+        self.assertIn('model = "xiaomi/mimo-v2.6-flash"',
+                      (self.root / ".runtime/codex/mimo.config.toml").read_text())
 
     def test_resume_and_provider_binding(self):
         result = self.run_cli("resume", "--last", "Continue")

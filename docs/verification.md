@@ -1,11 +1,11 @@
 # Verification - 2026-10-02
 
-The current launcher uses Codex CLI 0.159.2 under Ubuntu/WSL with
-`stealth/space-bunny-alpha` through OpenRouter. The Windows CLI on this host
+The recorded launcher check used Codex CLI 0.159.2 under Ubuntu/WSL with the
+former free-preview default through OpenRouter. The Windows CLI on this host
 rejected shell tools under its host policy; the WSL CLI completed a live
 inference, shell read, file write and replay smoke. `./codex-ctf` installs an
 isolated configuration, 12 native agents, A/D skills and custom prompts under
-ignored `.runtime/codex/`. `doctor` validates all seven profiles without
+ignored `.runtime/codex/`. The previous `doctor` run validated seven profiles without
 inference. Native prompt discovery found `/prompts:brrrr` and
 `/prompts:chillax`.
 
@@ -35,5 +35,6 @@ construction and diff whitespace checks passed on 2026-10-02. The Python suite
 ran 71 tests with one optional `tshark` skip, including dispatch checks for
 the single-agent `run`, `audit`, `traffic` and `patch` commands. After backing
 up stale SQLite state from an earlier Codex build, the Ubuntu TUI opened and
-displayed Space Bunny as its selected model. A passed local or synthetic check does not
-establish an official checker result.
+displayed the former default model. The current model configuration has not
+been live-smoke-tested. A passed local or synthetic check does not establish an
+official checker result.

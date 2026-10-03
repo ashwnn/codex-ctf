@@ -33,7 +33,7 @@ Rufflecopter PostgREST issue is not established through port 35244.
 
 ## Provider and accounting
 
-The Space Bunny free-model limit is 1,000 requests per day and is exhausted.
+The former free-preview model's daily request limit was exhausted.
 OpenRouter reported reset at `2026-10-03 00:00 UTC`. The key has no purchased
 credits. The two completed runs used ephemeral sessions, so their native child
 usage cannot be recovered exactly. The first run's root used 599,491 tokens;
@@ -43,14 +43,14 @@ actual total is higher because the first two runs' child usage is missing.
 The launcher now retains sessions for future per-agent accounting.
 At the 2026-10-02 catalog price for DeepSeek V4.1 Flash, those observed
 input, cache-read and output tokens would cost $0.129718620555. This is a
-lower bound, not an exact all-agent bill. OpenRouter reports $0 actual usage
-for the free Space Bunny key.
+lower bound, not an exact all-agent bill. OpenRouter reported $0 actual usage
+for the former free-preview key.
 
 The TUI initially rejected SQLite migration checksums left by an earlier
 Codex build. Its local SQLite files were backed up under ignored
 `.runtime/codex/`, then the Ubuntu CLI recreated them. The retained rollout
 JSONL files were preserved, and `./codex-ctf` opened successfully with Space
-Bunny selected.
+the former default selected.
 
 Do not claim checker success, score or complete challenge compromise from this
 offline evidence. Keep all flags held unless the user explicitly authorizes

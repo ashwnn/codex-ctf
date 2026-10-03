@@ -1,0 +1,2 @@
+# Explicit Xiaomi MiMo V2.6 Flash alternative; never selected as a fallback.
+model = "xiaomi/mimo-v2.6-flash"

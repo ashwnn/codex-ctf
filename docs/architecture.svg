@@ -42,7 +42,7 @@
 
 <rect class="b" x="40" y="290" width="260" height="96" rx="8"/>
 <text class="t" x="170" y="314" text-anchor="middle">Repo config</text>
-<text class="s" x="170" y="334" text-anchor="middle">config/codex/*.toml (7 profiles)</text>
+<text class="s" x="170" y="334" text-anchor="middle">config/codex/*.toml (6 profiles)</text>
 <text class="s" x="170" y="350" text-anchor="middle">AGENTS.md · custom agents</text>
 <text class="s" x="170" y="366" text-anchor="middle">16 skills · custom prompts</text>
 
@@ -104,13 +104,13 @@
 <text class="t" x="1010" y="120" text-anchor="middle">OpenRouter</text>
 <text class="s" x="1010" y="139" text-anchor="middle">Responses endpoint · OPENROUTER_API_KEY</text>
 
-<rect class="md" x="880" y="186" width="260" height="50" rx="8"/>
-<text class="t" x="1010" y="208" text-anchor="middle">Space Bunny Alpha</text>
-<text class="s" x="1010" y="225" text-anchor="middle">repository default · availability may change</text>
+<rect class="m" x="880" y="186" width="260" height="50" rx="8"/>
+<text class="t" x="1010" y="208" text-anchor="middle">DeepSeek V4.1 Flash</text>
+<text class="s" x="1010" y="225" text-anchor="middle">repository default · default agents inherit</text>
 
 <rect class="m" x="880" y="256" width="260" height="58" rx="8"/>
-<text class="t" x="1010" y="280" text-anchor="middle">DeepSeek V4.1 Flash</text>
-<text class="s" x="1010" y="298" text-anchor="middle">optional cheap and audit profiles</text>
+<text class="t" x="1010" y="280" text-anchor="middle">MiMo V2.6 Flash</text>
+<text class="s" x="1010" y="298" text-anchor="middle">explicit optional profile</text>
 
 <rect class="m" x="880" y="330" width="260" height="58" rx="8"/>
 <text class="t" x="1010" y="354" text-anchor="middle">Other OpenRouter model</text>

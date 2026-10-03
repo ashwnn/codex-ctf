@@ -55,10 +55,10 @@ enumerate ports or contact other teams or event infrastructure. Command network
 access is enabled for this workflow. Prompt instructions are not an outbound
 firewall; use an external allowlist if hard network containment is required.
 
-The default OpenRouter model is `stealth/space-bunny-alpha`; default agents
-inherit it. Select another model explicitly if that preview is unavailable.
-There is no automatic provider fallback. A free-model 429 stops the run and
-retains sessions for continuation.
+The default OpenRouter model is `deepseek/deepseek-v4.1-flash`; default agents
+inherit it. Use `--profile mimo` to select `xiaomi/mimo-v2.6-flash` explicitly.
+There is no automatic model fallback. Provider errors stop the run and retain
+sessions for continuation.
 
 Within the TUI, `/prompts:brrrr` expands distinct useful work, up to twenty
 agents. `/prompts:chillax` uses the primary agent and at most one worker.
@@ -84,9 +84,10 @@ for checker and patch records.
 On 2026-10-02, the Python suite ran 71 tests with one optional `tshark` skip.
 It covered launcher dispatch and resume, provider isolation, evidence and flag
 tools, and deployment recovery with temporary repositories and dummy adapters.
-Shell syntax, seven strict Codex profiles, native prompt construction and diff
-whitespace checks also passed. In Ubuntu/WSL, a live smoke completed model
-inference, shell read, file write and replay; the TUI opened with Space Bunny.
+The previous checks covered shell syntax, seven then-existing strict Codex
+profiles, native prompt construction and diff whitespace. In Ubuntu/WSL, a live smoke completed model
+inference, shell read, file write and replay using the former free preview. The
+current model configuration has not been live-smoke-tested.
 
 The full and `brrrr` loops were exercised on an authorized offline FAUST clone
 through four documented service interfaces. Synthetic IMC and LAMP attacks were
