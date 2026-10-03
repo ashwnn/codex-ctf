@@ -9,5 +9,8 @@ the configured limit of twenty. Split by service or independent hypothesis,
 keep one writer per service, and stop duplicate work. Spend tokens when the
 expected point gain justifies it. Preserve checker health and event limits.
 Use only the exact assigned address and documented interfaces; never expand
-to other teams or event infrastructure. Hold all flags without submission.
+to other teams or event infrastructure. Earlier submission earns more points:
+write captured flags to the private inbox immediately for the configured local
+submitter. If the organizer API contract is unavailable, hold them privately
+and report that blocker. Follow event rate limits.
 Give the next concrete result and keep working.

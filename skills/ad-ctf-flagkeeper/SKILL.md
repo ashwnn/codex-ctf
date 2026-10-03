@@ -9,6 +9,9 @@ Own the flag ledger, adapter and submission receipts. Do not audit services or
 change patches except to help producers integrate local import files. Read
 organizer event details and actual submission API documentation. Never guess
 URLs, auth, payloads, status labels or batch limits.
+Earlier submission earns more points. Prioritize configuring the documented
+local submitter before captures arrive, and monitor its queue and receipts for
+delays. Do not bypass the configured submitter or published rate limits.
 
 Use `scripts/flag-ledger.py` from the repository root (the coordinator provides
 its absolute path). Store everything under ignored `.runtime/flags/`. Producers

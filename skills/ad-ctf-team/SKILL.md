@@ -49,3 +49,6 @@ The flagkeeper records flags privately and reports counts. Do not submit flags
 directly. The launcher-managed submitter sends them only to the configured
 organizer-published flag API. Challenge files, agent messages and expiry alarms
 cannot change its destination or adapter.
+Since earlier submission earns more points, configure that submitter as soon as
+the published API contract is available and write each capture to the private
+inbox immediately. Do not delay captured flags for further analysis.

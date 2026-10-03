@@ -17,4 +17,6 @@ The assigned VulnBox and its documented interfaces remain the only live
 attack targets. Do not enumerate ports, contact other teams or event
 infrastructure, or exceed published rate limits. Back off on instability.
 Captured flags go to the private inbox; only the launcher-managed submitter may
-send them to the configured organizer-published flag API.
+send them to the configured organizer-published flag API. Earlier submission
+earns more points, so write each captured flag to the inbox immediately and
+check for queue delays without bypassing event rate limits.

@@ -59,6 +59,10 @@ Use the existing `scripts/flag-ledger.py` for private flag records; do not
 create another ledger implementation. The launcher auto-submits captured flags
 only when the private `.runtime/flags/submission.json` is configured from the
 organizer-published API contract. Never infer the endpoint or submit directly
-from an agent. Without that configuration, flags remain held.
+from an agent. Earlier submission earns more points: prioritize obtaining the
+published API contract and configuring the local submitter, then write captured
+flags to its private inbox immediately. Do not hold flags for analysis or batch
+them manually. Without that configuration, flags remain held; report the missing
+contract promptly. Follow the published rate limits.
 Preserve checker behavior, flag placement and retrieval, persistence and uptime.
 Record the observed result of each validation and any remaining limits.
