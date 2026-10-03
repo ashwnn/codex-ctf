@@ -8,5 +8,6 @@ handoffs, then close them, retaining at most one for essential work. Spawn a
 worker only when it saves more work than it costs. Use bounded reads,
 short tool output and concise handoffs. Avoid repeated analysis and speculative
 branches. Keep essential checker, uptime, flag handling and patch work moving.
-Use only my assigned VulnBox and documented interfaces, and hold all flags
-without submission. Report the next concrete result and keep working.
+Use only my assigned VulnBox and documented interfaces. Do not submit flags
+directly; the launcher-managed submitter handles captured flags when configured.
+Report the next concrete result and keep working.

@@ -337,6 +337,32 @@ elif $CTF_JSON || [ -n "$CTF_OUTPUT" ]; then
   fail '--json and --output require --exec.'
 fi
 [ -z "$CTF_PROMPT" ] || CTF_ARGS+=(-- "$CTF_PROMPT")
+# A private, organizer-configured endpoint opts this run into immediate flag
+# submission. The worker stays tied to the Codex process and logs metadata only.
+CTF_AUTO_PID=''
+CTF_SUBMISSION_CONFIG_PATH="${CTF_SUBMISSION_CONFIG:-$CTF_ROOT/.runtime/flags/submission.json}"
+case "$CTF_SUBMISSION_CONFIG_PATH" in /*) ;; *) CTF_SUBMISSION_CONFIG_PATH="$CTF_ROOT/$CTF_SUBMISSION_CONFIG_PATH" ;; esac
+if [ -f "$CTF_SUBMISSION_CONFIG_PATH" ]; then
+  require_python quiet
+  mkdir -p "$CTF_ROOT/.runtime/flags"
+  chmod 700 "$CTF_ROOT/.runtime/flags"
+  CTF_SUBMISSION_ADAPTER="${CTF_SUBMISSION_ADAPTER:-$CTF_ROOT/scripts/submit-http.py}"
+  if env -u OPENROUTER_API_KEY -u OPENAI_API_KEY -u CODEX_API_KEY \
+      CTF_SUBMISSION_CONFIG="$CTF_SUBMISSION_CONFIG_PATH" "$CTF_PYTHON" \
+      "$CTF_SUBMISSION_ADAPTER" --check >/dev/null 2>&1; then
+    (
+      cd "$CTF_ROOT"
+      env -u OPENROUTER_API_KEY -u OPENAI_API_KEY -u CODEX_API_KEY \
+        CTF_SUBMISSION_CONFIG="$CTF_SUBMISSION_CONFIG_PATH" "$CTF_PYTHON" \
+        "$CTF_ROOT/scripts/flag-ledger.py" --db "$CTF_ROOT/.runtime/flags/ledger.sqlite3" \
+        auto --adapter "$CTF_SUBMISSION_ADAPTER"
+    ) >> "$CTF_ROOT/.runtime/flags/auto-submit.log" 2>&1 &
+    CTF_AUTO_PID=$!
+    trap 'kill -TERM "$CTF_AUTO_PID" 2>/dev/null || true; wait "$CTF_AUTO_PID" 2>/dev/null || true' EXIT
+  else
+    printf 'ctf-codex: automatic flag submission was not started; local API config or adapter preflight failed.\n' >&2
+  fi
+fi
 # The provider reads OPENROUTER_API_KEY; tool subprocesses filter it via config.
-exec env -u OPENAI_API_KEY -u CODEX_API_KEY \
+env -u OPENAI_API_KEY -u CODEX_API_KEY \
   CODEX_HOME="$CTF_HOME" "$CTF_CODEX_BIN" "${CTF_ARGS[@]}"

@@ -210,7 +210,7 @@ def main():
         if not flags:
             print("tulip-replay: one request completed with status %s; no flag captured" % status)
             return 1
-        path = save_flags("flags/inbox", flags, args.service, args.team, args.flag_id,
+        path = save_flags(".runtime/flags/inbox", flags, args.service, args.team, args.flag_id,
                           args.source, args.expires_at)
         print("tulip-replay: status %s; captured %d value(s) to %s" % (status, len(flags), path))
         return 0

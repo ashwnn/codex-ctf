@@ -74,20 +74,35 @@ class LedgerTests(unittest.TestCase):
         plan = ledger.status(self.db, at=now + 200)
         self.assertEqual(plan["states"]["expired"], 1)
         self.assertEqual(plan["at_risk_count"], 1)
-        self.assertEqual(plan["submission_mode"], "hold_until_signal")
+        self.assertEqual(plan["submission_mode"], "automatic_when_configured")
         with self.assertRaises(ValueError):
             ledger.submit(self.db, "missing", "timer")
         self.assertEqual(self.db.execute("SELECT SUM(attempts) FROM flags").fetchone()[0], 0)
 
-    def test_submit_earliest_first_partial_receipt_and_no_unknown_expiry(self):
+    def test_submit_earliest_first_and_unknown_expiry_immediately(self):
         now = time.time()
         self.ingest(record("LATER", ledger.iso(now + 600)), record("FIRST", ledger.iso(now + 300)), record())
         adapter = self.adapter('assert p["flags"][0]["flag"] == "FIRST"\n'
                                'print(json.dumps({"results":[{"id":p["flags"][0]["id"],"status":"accepted"}]}))\n')
         result = ledger.submit(self.db, adapter, "SUBMIT_NOW")
-        self.assertEqual(result["attempted"], 2)
-        self.assertEqual(result["states"], {"accepted": 1, "pending": 1, "uncertain": 1})
+        self.assertEqual(result["attempted"], 3)
+        self.assertEqual(result["states"], {"accepted": 1, "uncertain": 2})
         self.assertEqual(result["stopped"], "retry_or_uncertain_receipt")
+
+    def test_auto_cycle_imports_and_submits_inbox_without_expiry_metadata(self):
+        inbox = self.root / "runtime/flags/inbox"
+        inbox.mkdir(parents=True)
+        record_path = inbox / "capture.jsonl"
+        record_path.write_text(json.dumps(record()) + "\n")
+        adapter = self.adapter('print(json.dumps({"results":[{"id":p["flags"][0]["id"],"status":"accepted"}]}))\n')
+
+        result = ledger.auto_cycle(self.db, inbox, adapter)
+
+        self.assertEqual(result["import"]["added"], 1)
+        self.assertEqual(result["submission"]["attempted"], 1)
+        self.assertEqual(result["submission"]["states"], {"accepted": 1})
+        self.assertTrue((inbox.parent / "imported/capture.jsonl").exists())
+        self.assertEqual(ledger.status(self.db)["unknown_expiry"], 0)
 
     def test_error_is_uncertain_and_next_release_does_not_resend(self):
         self.ingest(record(expires=ledger.iso(time.time() + 300)))
@@ -234,6 +249,24 @@ class HTTPTests(unittest.TestCase):
         self.assertTrue(http._private_plain_http("10.0.0.5"))
         self.assertTrue(http._private_plain_http("localhost"))
         self.assertFalse(http._private_plain_http("example.com"))
+
+    def test_private_config_preflight_does_not_send_or_print_credentials(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "submission.json"
+            token_path = Path(directory) / "token"
+            token_path.write_text("SYNTHETIC_TOKEN")
+            token_path.chmod(0o600)
+            config = {**self.config, "token_file": str(token_path)}
+            config_path.write_text(json.dumps(config))
+            config_path.chmod(0o600)
+            env = dict(os.environ, CTF_SUBMISSION_CONFIG=str(config_path))
+
+            result = subprocess.run([sys.executable, str(ROOT / "scripts/submit-http.py"), "--check"],
+                                    env=env, capture_output=True, text=True)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), '{"ready":true}')
+            self.assertNotIn("SYNTHETIC_TOKEN", result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

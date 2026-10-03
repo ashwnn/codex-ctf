@@ -12,9 +12,10 @@ when there is useful work. It stores private evidence under `.runtime/`.
 5. Verify normal flows, the original exploit, restart persistence and observed
    service health. Record what could not be checked.
 
-Only the assigned VulnBox is a live target. Do not enumerate ports, contact
-other teams or event infrastructure, or submit flags. The flagkeeper keeps
-captured values private and reports counts.
+Only the assigned VulnBox is a live attack target. Do not enumerate ports or
+contact other teams or event infrastructure. The flagkeeper keeps captured
+values private; the launcher-managed submitter sends them only to the configured
+organizer-published flag API.
 
 `/prompts:brrrr` uses more agents for distinct points-producing work.
 `/prompts:chillax` keeps the primary and at most one useful worker to save

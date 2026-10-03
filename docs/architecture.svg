@@ -179,8 +179,8 @@
 <path class="a" d="M1010 604V630" marker-end="url(#ar)"/>
 
 <rect class="b" x="880" y="630" width="260" height="64" rx="8"/>
-<text class="t" x="1010" y="654" text-anchor="middle">scripts/submit-http.py</text>
-<text class="s" x="1010" y="672" text-anchor="middle">opt-in · requires explicit user signal</text>
+<text class="t" x="1010" y="654" text-anchor="middle">Automatic flag submitter</text>
+<text class="s" x="1010" y="672" text-anchor="middle">configured organizer API · starts with Codex</text>
 
 <path class="a" d="M1010 694V720" marker-end="url(#ar)"/>
 

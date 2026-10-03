@@ -43,9 +43,14 @@ ignored `.runtime/`; useful PoC, patch and verification work follows concrete
 findings. The team uses synthetic records to reproduce issues, checks normal
 flows and rollback after a patch, and records what was actually observed.
 
-Flags stay in the private ledger. Submission requires a separate, current
-instruction from you. Sessions and event evidence also remain under `.runtime/`
-so an interrupted run can be resumed without committing sensitive material.
+Captured flags stay under `.runtime/flags/`. When
+`.runtime/flags/submission.json` exists with the organizer-published API
+contract, the launcher starts a private worker that polls the inbox every
+second and submits pending flags. The worker stops with Codex and logs
+counts only to `.runtime/flags/auto-submit.log`. Without that configuration,
+flags remain held. Use `CTF_SUBMISSION_ADAPTER` when the official API does not
+match the generic HTTP adapter. Never guess the endpoint or status mapping.
+Sessions and event evidence remain under `.runtime/` and out of Git.
 
 ## Scope and modes
 

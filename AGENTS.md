@@ -35,16 +35,19 @@ clear whole tables or reset volumes to prepare a fixture.
 
 The user's assigned VulnBox is the default live target. Derive its exact address
 and service ports from user or organizer evidence before making requests. Do not
-enumerate ports or contact other teams, the scoreboard, VPN, proxies or organizer
-infrastructure. Follow event rate limits. Keep raw flags and credentials out of
-model-visible tool output and reports.
+enumerate ports or contact other teams, VPN, proxies or organizer/admin
+infrastructure. Only the configured local submitter may contact the exact
+organizer-published flag API. Follow event rate limits. Keep raw flags and
+credentials out of model-visible tool output and reports.
 If the model provider returns a quota or rate-limit 429, save the current
 checkpoint and reset time, stop spawning agents, and resume after that time.
 Do not retry inference against an exhausted quota or switch models/providers
 without the user's instruction.
 
-Hold every flag submission until the user gives a current explicit instruction.
 Use the existing `scripts/flag-ledger.py` for private flag records; do not
-create another ledger implementation.
+create another ledger implementation. The launcher auto-submits captured flags
+only when the private `.runtime/flags/submission.json` is configured from the
+organizer-published API contract. Never infer the endpoint or submit directly
+from an agent. Without that configuration, flags remain held.
 Preserve checker behavior, flag placement and retrieval, persistence and uptime.
 Record the observed result of each validation and any remaining limits.

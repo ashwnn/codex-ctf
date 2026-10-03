@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Opt-in JSON HTTP adapter. Configure from real API docs, not Rules.pdf guesses.
 
-Reads flags/submission.json (or CTF_SUBMISSION_CONFIG) locally. Contract:
+Reads .runtime/flags/submission.json (or CTF_SUBMISSION_CONFIG) locally. Contract:
 {"url": "https://...", "token_file": "...", "flags_field": "flags",
  "results_field": "results", "flag_field": "flag", "status_field": "status",
  "status_map": {"actual API label": "accepted"}, "timeout": 10}
@@ -25,6 +25,33 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def validate(config):
+    if not isinstance(config, dict) or not isinstance(config.get("url"), str):
+        raise ValueError("Missing endpoint")
+    url = urllib.parse.urlsplit(config["url"])
+    if not url.hostname or url.username or url.password or url.fragment:
+        raise ValueError("Invalid endpoint")
+    if url.scheme not in {"https", "http"}:
+        raise ValueError("Unsupported endpoint scheme")
+    if url.scheme == "http" and not (
+            config.get("allow_plain_http") is True
+            and _private_plain_http(url.hostname)):
+        raise ValueError("Plain HTTP requires a loopback/private-network host opt-in")
+    fields = ("flags_field", "results_field", "flag_field", "status_field")
+    if any(key in config and not isinstance(config[key], str) for key in fields):
+        raise ValueError("Invalid field name")
+    mapping = config.get("status_map", {})
+    if not isinstance(mapping, dict) or not mapping or any(
+            not isinstance(key, str) or value not in STATES for key, value in mapping.items()):
+        raise ValueError("Invalid status mapping")
+    if "timeout" in config and (type(config["timeout"]) not in (int, float) or config["timeout"] <= 0):
+        raise ValueError("Invalid timeout")
+    if config.get("token_file"):
+        path = Path(config["token_file"])
+        if path.stat().st_mode & 0o077 or not path.read_text().strip():
+            raise ValueError("Token file must be private and nonempty")
+
+
 def _private_plain_http(hostname):
     # Plain HTTP is only acceptable for a loopback or private-network literal.
     if hostname == "localhost":
@@ -37,17 +64,11 @@ def _private_plain_http(hostname):
 
 
 def run(payload, config):
+    validate(config)
     entries = payload["flags"]
     flags = {e["flag"]: e["id"] for e in entries}
     if len(flags) != len(entries):
         raise ValueError("Duplicate batch")
-    url = urllib.parse.urlsplit(config["url"])
-    if url.scheme != "https" and not (
-            url.scheme == "http" and config.get("allow_plain_http") is True
-            and _private_plain_http(url.hostname or "")):
-        raise ValueError("Plain HTTP requires a loopback/private-network host opt-in")
-    if not url.hostname or url.username or url.password or url.fragment:
-        raise ValueError("Invalid endpoint")
     headers = {"Content-Type": "application/json"}
     if config.get("token_file"):
         path = Path(config["token_file"])
@@ -84,10 +105,17 @@ def run(payload, config):
 
 def main():
     try:
-        path = Path(os.environ.get("CTF_SUBMISSION_CONFIG", "flags/submission.json"))
+        path = Path(os.environ.get("CTF_SUBMISSION_CONFIG", ".runtime/flags/submission.json"))
         if path.stat().st_mode & 0o077:
             raise ValueError("Configuration must be private")
-        result = run(json.load(sys.stdin), json.loads(path.read_text()))
+        config = json.loads(path.read_text())
+        validate(config)
+        if sys.argv[1:] == ["--check"]:
+            print('{"ready":true}')
+            return 0
+        if sys.argv[1:]:
+            raise ValueError("Unknown option")
+        result = run(json.load(sys.stdin), config)
         print(json.dumps(result))
         return 0
     except Exception:

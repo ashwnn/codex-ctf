@@ -66,7 +66,7 @@ class TulipReplayTests(unittest.TestCase):
         self.assertNotIn(FLAG, result.stdout + result.stderr)
         self.assertEqual(Handler.requests, ["/note/public-id-7"])
         self.assertIn("captured 1 value(s)", result.stdout)
-        inbox = self.workspace / "flags/inbox"
+        inbox = self.workspace / ".runtime/flags/inbox"
         files = list(inbox.glob("tulip-*.jsonl"))
         self.assertEqual(len(files), 1)
         self.assertEqual(inbox.stat().st_mode & 0o777, 0o700)
@@ -81,7 +81,7 @@ class TulipReplayTests(unittest.TestCase):
         result = self.command(unlisted)
         self.assertEqual(result.returncode, 2)
         self.assertEqual(Handler.requests, [])
-        self.assertFalse((self.workspace / "flags").exists())
+        self.assertFalse((self.workspace / ".runtime/flags").exists())
 
     def test_public_plain_http_is_refused(self):
         self.targets.write_text("http://8.8.8.8\n")

@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import signal
 import sqlite3
 import subprocess
 import sys
@@ -103,7 +104,7 @@ def status(db, margin=30, at=None):
     earliest = db.execute("SELECT MIN(expires) FROM flags WHERE state='pending'").fetchone()[0]
     return {"states": counts, "unknown_expiry": unknown, "at_risk_by": iso(deadline),
             "at_risk_count": loss, "earliest_expiry": iso(earliest) if earliest else None,
-            "safety_margin_seconds": margin, "submission_mode": "hold_until_signal"}
+            "safety_margin_seconds": margin, "submission_mode": "automatic_when_configured"}
 
 
 def review(db, limit=100):
@@ -168,8 +169,9 @@ def submit(db, adapter, signal, batch_size=25, max_batches=100, delay=1,
     expire(db, cutoff)
     # Absolute cap keeps a large --batch-size/--max-batches product bounded.
     queue_limit = min(batch_size * max_batches, 50000)
-    ids = [r[0] for r in db.execute("SELECT id FROM flags WHERE state='pending' AND expires>? "
-                                    "ORDER BY expires,id LIMIT ?", (cutoff + margin, queue_limit))]
+    ids = [r[0] for r in db.execute("SELECT id FROM flags WHERE state='pending' "
+                                    "AND (expires IS NULL OR expires>?) "
+                                    "ORDER BY expires IS NULL,expires,id LIMIT ?", (cutoff + margin, queue_limit))]
     batches = sent = 0
     stopped = None
     for offset in range(0, min(len(ids), batch_size * max_batches), batch_size):
@@ -184,8 +186,9 @@ def submit(db, adapter, signal, batch_size=25, max_batches=100, delay=1,
         # resend this batch. Crash/timeout leaves uncertain entries for reconciliation.
         with db:
             db.execute("BEGIN IMMEDIATE")
-            rows = db.execute("SELECT * FROM flags WHERE state='pending' AND expires>? "
-                              "AND id IN (" + placeholders + ") ORDER BY expires,id",
+            rows = db.execute("SELECT * FROM flags WHERE state='pending' "
+                              "AND (expires IS NULL OR expires>?) "
+                              "AND id IN (" + placeholders + ") ORDER BY expires IS NULL,expires,id",
                               (time.time() + timeout + margin, *batch_ids)).fetchall()
             for row in rows:
                 db.execute("UPDATE flags SET state='uncertain', attempts=attempts+1 WHERE id=?",
@@ -210,6 +213,65 @@ def submit(db, adapter, signal, batch_size=25, max_batches=100, delay=1,
             stopped = "retry_or_uncertain_receipt"
             break
     return {"batches": batches, "attempted": sent, "stopped": stopped, **status(db, margin)}
+
+
+def import_inbox(db, inbox):
+    inbox = Path(inbox)
+    imported = inbox.parent / "imported"
+    rejected = inbox.parent / "rejected"
+    inbox.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(inbox, 0o700)
+    imported.mkdir(mode=0o700, exist_ok=True)
+    rejected.mkdir(mode=0o700, exist_ok=True)
+    os.chmod(imported, 0o700)
+    os.chmod(rejected, 0o700)
+    counts = {"files": 0, "added": 0, "duplicates": 0, "rejected": 0}
+    for path in sorted(inbox.glob("*.jsonl")):
+        try:
+            with path.open(encoding="utf-8") as stream:
+                result = ingest(db, stream)
+            path.replace(imported / path.name)
+            counts["files"] += 1
+            counts["added"] += result["added"]
+            counts["duplicates"] += result["duplicates"]
+        except (ValueError, TypeError, KeyError, sqlite3.Error, OSError):
+            try:
+                path.replace(rejected / path.name)
+            except OSError:
+                pass
+            counts["rejected"] += 1
+    return counts
+
+
+def auto_cycle(db, inbox, adapter, batch_size=25, max_batches=100,
+               delay=0.1, timeout=10, margin=0):
+    imported = import_inbox(db, inbox)
+    result = submit(db, adapter, "SUBMIT_NOW", batch_size, max_batches,
+                    delay, timeout, margin)
+    return {"import": imported, "submission": result}
+
+
+def auto(db, inbox, adapter, interval=1, batch_size=25, max_batches=100,
+         delay=0.1, timeout=10, margin=0):
+    if interval < 0.1:
+        raise ValueError("Polling interval must be at least 0.1 seconds")
+    running = True
+
+    def stop(_signum, _frame):
+        nonlocal running
+        running = False
+
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+    while running:
+        result = auto_cycle(db, inbox, adapter, batch_size, max_batches,
+                            delay, timeout, margin)
+        if (result["import"]["files"] or result["import"]["rejected"] or
+                result["submission"]["attempted"] or result["submission"]["stopped"]):
+            print(json.dumps(result, sort_keys=True), flush=True)
+        if result["submission"]["stopped"]:
+            return
+        time.sleep(interval)
 
 
 def reconcile(db, stream):
@@ -258,6 +320,15 @@ def main():
     p.add_argument("--timeout", type=float, default=15)
     p.add_argument("--margin", type=float, default=30)
     p.add_argument("--at", help="Stop before this release deadline (ISO)")
+    p = commands.add_parser("auto", help="Import inbox files and submit pending flags until stopped")
+    p.add_argument("--inbox", default=".runtime/flags/inbox")
+    p.add_argument("--adapter", required=True, help="Local Python transport adapter")
+    p.add_argument("--interval", type=float, default=1)
+    p.add_argument("--batch-size", type=int, default=25)
+    p.add_argument("--max-batches", type=int, default=100)
+    p.add_argument("--delay", type=float, default=0.1)
+    p.add_argument("--timeout", type=float, default=10)
+    p.add_argument("--margin", type=float, default=0)
     args = parser.parse_args()
     db = connect(args.db)
     try:
@@ -273,6 +344,10 @@ def main():
             result = submit(db, args.adapter, args.signal, args.batch_size,
                             args.max_batches, args.delay, args.timeout, args.margin,
                             timestamp(args.at) if args.at else None)
+        elif args.command == "auto":
+            auto(db, args.inbox, args.adapter, args.interval, args.batch_size,
+                 args.max_batches, args.delay, args.timeout, args.margin)
+            result = {"stopped": True}
         else:
             if args.margin < 0:
                 raise ValueError("Margin must be nonnegative")

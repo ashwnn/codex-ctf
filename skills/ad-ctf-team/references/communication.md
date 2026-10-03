@@ -27,7 +27,8 @@ workers with native tools. Files are a shared Codex workspace artifact, not
 an external daemon, router or agent loop.
 
 The sole flagkeeper owns `.runtime/flags/ledger.sqlite3`. Attack agents may write only
-unique JSONL files under `.runtime/flags/inbox/`. The flagkeeper imports those files and
-returns counts; the coordinator must not forward raw flag values. Keep one
+unique JSONL files under `.runtime/flags/inbox/`, by atomically renaming completed
+files into that directory. The launcher-managed submitter imports and submits them
+when configured; the coordinator must not forward raw flag values. Keep one
 code/deployment writer per service, and use the board to prevent duplicate
 service/team attack shards.

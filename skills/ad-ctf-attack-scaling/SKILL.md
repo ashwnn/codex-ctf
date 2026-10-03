@@ -7,7 +7,8 @@ description: Run validated bounded A/D PoCs against the user's assigned VulnBox 
 
 Require a coordinator assignment, locally validated PoC, exact documented
 own-box interface, event rate limits and a finite request budget. Never invent
-or scan targets, contact other teams or event infrastructure, or submit flags.
+or scan targets, contact other teams or event infrastructure, or submit flags
+directly. The launcher-managed submitter handles captured flags.
 Confirm the deployed revision and checker flow before live requests.
 
 Start with one request. Check correctness, latency, errors and service health
