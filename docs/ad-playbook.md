@@ -16,6 +16,9 @@ Only the assigned VulnBox is a live attack target. Do not enumerate ports or
 contact other teams or event infrastructure. The flagkeeper keeps captured
 values private; the launcher-managed submitter sends them only to the configured
 organizer-published flag API.
+Earlier submission earns more points. Write each capture to the private inbox
+immediately; never hold flags for strategic timing or manual batching. The
+launcher starts the submitter when a valid API config appears, even mid-session.
 
 `/prompts:brrrr` uses more agents for distinct points-producing work.
 `/prompts:chillax` keeps the primary and at most one useful worker to save

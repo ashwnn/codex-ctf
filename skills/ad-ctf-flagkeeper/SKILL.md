@@ -12,6 +12,9 @@ URLs, auth, payloads, status labels or batch limits.
 Earlier submission earns more points. Prioritize configuring the documented
 local submitter before captures arrive, and monitor its queue and receipts for
 delays. Do not bypass the configured submitter or published rate limits.
+Never intentionally hold a captured flag to improve timing or wait for a batch.
+The launcher also watches for a valid config added after launch, so check its
+private log and queue state when configuring during an active session.
 
 Use `scripts/flag-ledger.py` from the repository root (the coordinator provides
 its absolute path). Store everything under ignored `.runtime/flags/`. Producers

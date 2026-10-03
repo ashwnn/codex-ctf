@@ -4,9 +4,11 @@ import json
 import os
 import shutil
 import socket
+import sqlite3
 import struct
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -173,6 +175,51 @@ printf 'HOME=%s\nOPENAI=%s\nCODEX_KEY=%s\n' "$CODEX_HOME" "${OPENAI_API_KEY:-uns
         home = self.root / ".runtime/codex"
         self.assertEqual((home / "config.toml").read_text().count('[projects."'), 1)
         self.assertTrue((home / "skills/ad-ctf-team/SKILL.md").exists())
+
+    def test_submitter_starts_when_config_appears_after_launch(self):
+        shutil.copytree(ROOT / "scripts", self.root / "scripts")
+        fake = self.fakebin / "codex"
+        fake.write_text(fake.read_text() + "sleep 3\n")
+        adapter = self.root / "synthetic-adapter.py"
+        adapter.write_text('''import json, sys
+if sys.argv[1:] == ["--check"]:
+    print('{"ready":true}')
+else:
+    data = json.load(sys.stdin)
+    print(json.dumps({"results": [{"id": item["id"], "status": "accepted"}
+                                  for item in data["flags"]]}))
+''')
+        self.env["CTF_SUBMISSION_ADAPTER"] = str(adapter)
+        proc = subprocess.Popen([str(self.root / "bin/ctf-codex"), "team"],
+                                env=self.env, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True)
+        try:
+            deadline = time.monotonic() + 5
+            while not self.capture.exists() and time.monotonic() < deadline:
+                time.sleep(0.05)
+            self.assertTrue(self.capture.exists())
+            flags_dir = self.root / ".runtime/flags"
+            capture = flags_dir / "capture.tmp"
+            capture.write_text(json.dumps({"flag": "SYNTHETIC_FLAG_ASAP", "service": "synthetic",
+                                           "team": "2", "flag_id": "test-object",
+                                           "source": "local mock", "expires_at": None}) + "\n")
+            capture.replace(flags_dir / "inbox/capture.jsonl")
+            config = flags_dir / "submission.json"
+            config.write_text("{}\n")
+            config.chmod(0o600)
+            db_path = flags_dir / "ledger.sqlite3"
+            accepted = False
+            while time.monotonic() < deadline:
+                if db_path.exists():
+                    with sqlite3.connect(db_path) as db:
+                        accepted = db.execute("SELECT COUNT(*) FROM flags WHERE state='accepted'").fetchone()[0] == 1
+                    if accepted:
+                        break
+                time.sleep(0.05)
+            self.assertTrue(accepted, "configured submitter did not process the waiting flag")
+        finally:
+            proc.terminate()
+            proc.communicate(timeout=5)
 
 
 def udp_packet(port, payload):

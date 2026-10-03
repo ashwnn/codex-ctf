@@ -43,13 +43,14 @@ ignored `.runtime/`; useful PoC, patch and verification work follows concrete
 findings. The team uses synthetic records to reproduce issues, checks normal
 flows and rollback after a patch, and records what was actually observed.
 
-Captured flags stay under `.runtime/flags/`. When
-`.runtime/flags/submission.json` exists with the organizer-published API
-contract, the launcher starts a private worker that polls the inbox every
-second and submits pending flags. The worker stops with Codex and logs
+Captured flags stay under `.runtime/flags/`. The launcher watches for a valid
+`.runtime/flags/submission.json` built from the organizer-published API contract,
+including one added after Codex starts. Its private worker polls the inbox every
+second and submits pending flags promptly. The worker stops with Codex and logs
 counts only to `.runtime/flags/auto-submit.log`. Without that configuration,
-flags remain held. Use `CTF_SUBMISSION_ADAPTER` when the official API does not
-match the generic HTTP adapter. Never guess the endpoint or status mapping.
+flags remain held. Submit each captured flag to the inbox immediately; earlier
+submission earns more points. Use `CTF_SUBMISSION_ADAPTER` when the official API
+does not match the generic HTTP adapter. Never guess the endpoint or status mapping.
 Sessions and event evidence remain under `.runtime/` and out of Git.
 
 ## Scope and modes
