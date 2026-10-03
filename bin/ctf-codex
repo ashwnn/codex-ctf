@@ -126,7 +126,7 @@ setup() {
 usage() {
   cat <<'EOF'
 Usage: ./codex-ctf [PROMPT]
-       bin/ctf-codex setup | doctor | models [MODEL] | models --zdr MODEL... | smoke
+       bin/ctf-codex setup | doctor | models [MODEL] | models --zdr MODEL... | models --free-zdr | smoke
        bin/ctf-codex deploy --config PRIVATE_JSON COMMAND [OPTIONS]
        bin/ctf-codex [team|brrrr|run|audit|traffic|patch] [OPTIONS] [PROMPT]
        bin/ctf-codex resume [OPTIONS] [--last|SESSION_ID] [PROMPT]
@@ -293,6 +293,7 @@ elif [ "$CTF_COMMAND" != run ] && [ "$CTF_COMMAND" != team ]; then
 $CTF_PROMPT"
   fi
 fi
+require_python quiet
 setup
 [ -n "${OPENROUTER_API_KEY:-}" ] || fail 'Export OPENROUTER_API_KEY before launch.'
 reject_project_config
@@ -371,4 +372,5 @@ CTF_AUTO_PID=$!
 trap 'kill -TERM "$CTF_AUTO_PID" 2>/dev/null || true; wait "$CTF_AUTO_PID" 2>/dev/null || true' EXIT
 # The provider reads OPENROUTER_API_KEY; tool subprocesses filter it via config.
 env -u OPENAI_API_KEY -u CODEX_API_KEY \
-  CODEX_HOME="$CTF_HOME" "$CTF_CODEX_BIN" "${CTF_ARGS[@]}"
+  CODEX_HOME="$CTF_HOME" "$CTF_PYTHON" "$CTF_ROOT/scripts/openrouter-fallback.py" \
+  "$CTF_CODEX_BIN" "${CTF_ARGS[@]}"

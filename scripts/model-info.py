@@ -7,6 +7,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,13 +31,42 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def request(path, token):
+def request(path, token=None):
     # Never forward the bearer token through a system proxy or a redirect.
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
-    req = urllib.request.Request("https://openrouter.ai/api/v1" + path,
-                                 headers={"Authorization": "Bearer " + token})
+    headers = {"Authorization": "Bearer " + token} if token else {}
+    req = urllib.request.Request("https://openrouter.ai/api/v1" + path, headers=headers)
     with opener.open(req, timeout=30) as response:
         return json.load(response)
+
+
+def is_zero(value):
+    try:
+        return Decimal(str(value)) == 0
+    except (InvalidOperation, TypeError):
+        return False
+
+
+def print_free_zdr():
+    """Show models with a zero-priced, ZDR-listed tool endpoint."""
+    models = {m.get("id"): m for m in request("/models?zdr=true").get("data", [])}
+    endpoints = request("/endpoints/zdr").get("data", [])
+    result = {}
+    for endpoint in endpoints:
+        model_id = endpoint.get("model_id")
+        model = models.get(model_id)
+        if not model or endpoint.get("status") != 0:
+            continue
+        pricing = endpoint.get("pricing") or {}
+        if not all(is_zero(pricing.get(part)) for part in ("prompt", "completion")):
+            continue
+        if "tools" not in (endpoint.get("supported_parameters") or []):
+            continue
+        result.setdefault(model_id, []).append(endpoint.get("provider_name"))
+    print(json.dumps({"free_zdr_tool_models": [
+        {"model": model_id, "providers": sorted(set(providers))}
+        for model_id, providers in sorted(result.items())
+    ], "notice": "Catalog snapshot only. Free requests share an account limit; verify all endpoints and actual routing before sending private data."}, indent=2))
 
 
 def print_zdr(models, token):
@@ -78,13 +108,16 @@ def print_zdr(models, token):
 
 def main():
     try:
+        if sys.argv[1:] == ["--free-zdr"]:
+            print_free_zdr()
+            return 0
         token = key()
         if len(sys.argv) > 1 and sys.argv[1] == "--zdr":
             print_zdr(sys.argv[2:], token)
             return 0
         if len(sys.argv) > 2:
             raise ValueError("Pass one model slug, or use --zdr with one or more model slugs.")
-        model = sys.argv[1] if len(sys.argv) > 1 else "deepseek/deepseek-v4.1-flash"
+        model = sys.argv[1] if len(sys.argv) > 1 else "qwen/qwen3.8-27b:free"
         data = request("/models", token)["data"]
         match = next((m for m in data if m["id"] == model), None)
         if not match:
@@ -94,7 +127,7 @@ def main():
         budget = request("/key", token).get("data", {})
         print(json.dumps({k: budget.get(k) for k in ("limit", "limit_remaining", "usage", "is_free_tier")}, indent=2))
         if match.get("expiration_date"):
-            print("Temporary model; recheck availability before the event. No automatic fallback.")
+            print("Temporary model; recheck availability before the event.")
         return 0
     except urllib.error.HTTPError as e:
         print("OpenRouter HTTP %s (response body withheld)." % e.code, file=sys.stderr)

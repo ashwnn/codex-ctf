@@ -1,5 +1,5 @@
 # Installed as .runtime/codex/config.toml: a USER-level config in isolated CODEX_HOME.
-model = "deepseek/deepseek-v4.1-flash"
+model = "qwen/qwen3.8-27b:free"
 model_provider = "openrouter"
 model_reasoning_effort = "low"
 model_reasoning_summary = "none"

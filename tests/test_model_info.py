@@ -13,6 +13,24 @@ SPEC.loader.exec_module(MODEL_INFO)
 
 
 class ModelInfoTests(unittest.TestCase):
+    def test_free_zdr_lists_only_zero_priced_tool_endpoints(self):
+        responses = [
+            {"data": [{"id": "qwen/qwen3.8-27b:free"}, {"id": "other/model"}]},
+            {"data": [
+                {"model_id": "qwen/qwen3.8-27b:free", "provider_name": "ZDR provider",
+                 "status": 0, "pricing": {"prompt": "0", "completion": "0"},
+                 "supported_parameters": ["tools"]},
+                {"model_id": "other/model", "provider_name": "Paid provider",
+                 "status": 0, "pricing": {"prompt": "0", "completion": "0.1"},
+                 "supported_parameters": ["tools"]},
+            ]},
+        ]
+        output = io.StringIO()
+        with patch.object(MODEL_INFO, "request", side_effect=responses), redirect_stdout(output):
+            MODEL_INFO.print_free_zdr()
+        self.assertIn("qwen/qwen3.8-27b:free", output.getvalue())
+        self.assertNotIn("other/model", output.getvalue())
+
     def test_zdr_report_filters_exact_models_and_discloses_scope(self):
         endpoints = [
             {

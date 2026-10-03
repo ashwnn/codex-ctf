@@ -1,9 +1,21 @@
 # Model selection
 
-The default model is `deepseek/deepseek-v4.1-flash`. Every default agent
-inherits it. `--profile mimo` selects `xiaomi/mimo-v2.6-flash`; any other model
-can be selected explicitly with `--model VENDOR/MODEL`. There is no model
-router or automatic model fallback.
+The default model is `qwen/qwen3.8-27b:free`. Every default agent inherits it.
+The loopback relay tries all currently free, ZDR-listed tool models, then paid
+`deepseek/deepseek-v4.1-flash` and `xiaomi/mimo-v2.6-flash`, in that order,
+when a model returns 429, 502, 503 or 504 before streaming. It adds
+`provider.zdr=true` to every Responses request. An error after streaming begins
+ends that request without replay. `--profile mimo` or `--model VENDOR/MODEL`
+pins a single model, with ZDR still enforced.
+
+`./codex-ctf models --free-zdr` reads OpenRouter's current model and ZDR
+endpoint catalogs without using a key or making an inference request. It lists
+zero-priced, tool-capable ZDR endpoints. The relay checks this catalog at first
+use and fails closed if it cannot be read. It does not route to a free model if
+any of its available ZDR endpoints has a price or lacks tools. OpenRouter's
+free request allowance is shared by the account; rotating models does not
+multiply it. The paid fallbacks require account credits, and actual inference
+through the relay must be checked with a configured API key.
 
 `./codex-ctf models MODEL` reads current OpenRouter metadata. Treat prices,
 availability and context size as time-sensitive; confirm actual usage from

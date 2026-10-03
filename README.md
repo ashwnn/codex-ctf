@@ -61,10 +61,15 @@ enumerate ports or contact other teams or event infrastructure. Command network
 access is enabled for this workflow. Prompt instructions are not an outbound
 firewall; use an external allowlist if hard network containment is required.
 
-The default OpenRouter model is `deepseek/deepseek-v4.1-flash`; default agents
-inherit it. Use `--profile mimo` to select `xiaomi/mimo-v2.6-flash` explicitly.
-There is no automatic model fallback. Provider errors stop the run and retain
-sessions for continuation.
+The default starts with `qwen/qwen3.8-27b:free`. A local relay reads the live
+OpenRouter catalog and tries every zero-priced, tool-capable ZDR model before
+falling back to paid `deepseek/deepseek-v4.1-flash`, then
+`xiaomi/mimo-v2.6-flash`, on rate limits or provider outages. It sets
+`provider.zdr=true` on every request. `./codex-ctf models --free-zdr` shows
+the current free candidates, including Ling when eligible. Free requests share
+OpenRouter's account limit. Explicit `--model` and `--profile mimo` selections
+remain pinned to their chosen model. If the account lacks paid credits, the
+paid fallback fails and the session is retained for continuation.
 
 For a low-cost, single-agent launch, run:
 

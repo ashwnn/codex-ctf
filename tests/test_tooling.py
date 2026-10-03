@@ -23,7 +23,7 @@ class LauncherTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="ctf-tooling-")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        for directory in ("bin", "config", "skills", "prompts"):
+        for directory in ("bin", "config", "skills", "prompts", "scripts"):
             shutil.copytree(ROOT / directory, self.root / directory)
         shutil.copy2(ROOT / "codex-ctf", self.root / "codex-ctf")
         self.fakebin = self.root / "fakebin"
@@ -62,7 +62,7 @@ printf 'HOME=%s\nOPENAI=%s\nCODEX_KEY=%s\n' "$CODEX_HOME" "${OPENAI_API_KEY:-uns
         self.assertFalse((self.root / "workspaces").exists())
         self.assertTrue((self.root / ".runtime/flags/inbox").is_dir())
         config = (self.root / ".runtime/codex/config.toml").read_text()
-        self.assertIn('model = "deepseek/deepseek-v4.1-flash"', config)
+        self.assertIn('model = "qwen/qwen3.8-27b:free"', config)
         self.assertIn('trust_level = "trusted"', config)
 
     def test_modes_are_native_prompts_and_brrrr_uses_team_profile(self):
@@ -177,7 +177,6 @@ printf 'HOME=%s\nOPENAI=%s\nCODEX_KEY=%s\n' "$CODEX_HOME" "${OPENAI_API_KEY:-uns
         self.assertTrue((home / "skills/ad-ctf-team/SKILL.md").exists())
 
     def test_submitter_starts_when_config_appears_after_launch(self):
-        shutil.copytree(ROOT / "scripts", self.root / "scripts")
         fake = self.fakebin / "codex"
         fake.write_text(fake.read_text() + "sleep 3\n")
         adapter = self.root / "synthetic-adapter.py"
