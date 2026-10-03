@@ -9,6 +9,17 @@ Work from this repository root. Keep private event material, captures, flags,
 findings and handoffs under the ignored `.runtime/` directory. Do not require
 service or team manifests, named workspaces or a scope form from the user.
 
+This event will run only three services. Identify all three and their published
+interfaces from organizer materials and the assigned machine, then stop service
+discovery. Scope monitoring, testing and patches to those three. Do not assume
+their names or ports.
+
+The A/D VMs have Tulip installed for traffic analysis. Check the local Tulip
+instance and its configured service coverage, then use its filters, tags, flow
+comparison and timelines for routine monitoring and triage. Inspect raw captures
+only when a finding needs details Tulip does not provide. Keep Tulip data local,
+redact evidence before sharing it with agents, and do not expose its interface.
+
 Use native Codex tools and agents. Start the five roles in $ad-ctf-team after the
 user provides context, unless the user invokes chillax mode. In chillax mode,
 keep one primary agent and at most one useful worker. In brrrr mode, expand

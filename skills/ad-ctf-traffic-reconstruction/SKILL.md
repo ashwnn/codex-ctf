@@ -24,6 +24,11 @@ See [workspace-handoff.md](references/workspace-handoff.md).
 
 ## 2. Preserve and inventory evidence
 
+- Use the VM's installed Tulip instance to find and compare relevant own-service
+  flows before doing manual packet analysis. Check its service coverage and
+  capture window; verify decisive bytes against preserved raw evidence when
+  needed. Review and reuse its generated replay snippets when useful, then
+  validate them with synthetic data. Keep Tulip and unredacted flow data local.
 - Copy input PCAPs and logs before transformation. Record hashes, capture window and timezone, sensor/interface, capture filters, packet loss/truncation, deployed source revision and image/binary hash, container/proxy topology, and clock offsets. Do not print real flags or credentials into shared output.
 - Build a UTC timeline retaining original timestamps. Link each flow to its 5-tuple, TCP stream or request ID, proxy connection, service process/container, and relevant log lines. Account for NAT, retries, retransmission, keep-alive, and concurrent requests.
 - Determine what is visible. TLS without keys may show metadata but no body; packet gaps or short snaplen may prevent exact request recovery. State such limits, rather than inferring plaintext.

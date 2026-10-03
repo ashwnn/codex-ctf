@@ -65,10 +65,23 @@ inherit it. Use `--profile mimo` to select `xiaomi/mimo-v2.6-flash` explicitly.
 There is no automatic model fallback. Provider errors stop the run and retain
 sessions for continuation.
 
-Within the TUI, `/prompts:brrrr` expands distinct useful work, up to twenty
-agents. `/prompts:chillax` uses the primary agent and at most one worker.
-Codex CLI names custom prompt commands `/prompts:name`; bare `/brrrr` and
-`/chillax` are not native slash commands.
+For a low-cost, single-agent launch, run:
+
+```bash
+./codex-ctf run
+```
+
+`run` selects the existing `cheap` profile: low reasoning effort, a 2,000-token
+tool output limit and no spawned agents. It opens an interactive Codex session
+without an initial workflow prompt. Send your task as the first message. Use
+this for focused work when you do not need the five-worker CTF team.
+
+For the full CTF team, start with `./codex-ctf` as above. Within that TUI,
+`/prompts:chillax` keeps the primary agent and at most one useful worker while
+continuing the current task. `/prompts:brrrr` expands distinct useful work, up
+to twenty agents. These prompts change agent behavior; they do not change the
+selected profile or model. Codex CLI names custom prompt commands
+`/prompts:name`; bare `/chillax` and `/brrrr` are not native slash commands.
 
 ## Optional commands
 

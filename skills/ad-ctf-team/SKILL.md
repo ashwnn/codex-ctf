@@ -17,11 +17,20 @@ it from organizer material or the assigned machine when possible.
 Ask the user only when the next action needs information unavailable locally.
 
 The inventory worker records the exact assigned VulnBox and documented service
-interfaces in `.runtime/coordination/targets.md` before live requests. No port
-enumeration or requests to other teams or event infrastructure. Keep raw event
-data, handoffs, findings and flags under ignored `.runtime/`. Share only bounded,
-redacted evidence with agents. Use native messages for urgent updates and short
-files under `.runtime/coordination/` when a durable handoff is useful.
+interfaces for the event's three services in `.runtime/coordination/targets.md`
+before live requests. Derive their names and ports from organizer evidence and
+the assigned machine; stop service discovery once all three running services
+and their published interfaces are identified. No port enumeration or requests
+to other teams or event infrastructure. Keep raw event data, handoffs, findings
+and flags under ignored `.runtime/`. Share only bounded, redacted evidence with
+agents. Use native messages for urgent updates and short files under
+`.runtime/coordination/` when a durable handoff is useful.
+
+The A/D VMs have Tulip installed. Have the traffic worker check its local
+availability and coverage for the three services, then use its existing filters,
+tags, flow comparisons and timelines for routine monitoring. Escalate to raw
+capture analysis only for evidence Tulip cannot resolve. Keep its interface and
+unredacted traffic private.
 
 Keep one source or deployment writer per service. Wait for a synthetic
 reproduction and its verdict before assigning a vulnerability patch; source

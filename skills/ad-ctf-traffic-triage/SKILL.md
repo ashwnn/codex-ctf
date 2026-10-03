@@ -14,6 +14,10 @@ the ignored .runtime/ directory.
 
 ## Detect and classify
 
+- Check the VM's installed Tulip instance and configured service coverage.
+  Prefer its filters, tags, flow comparison and time plots for routine triage;
+  inspect raw PCAPs only for missing protocol or causality details. Keep Tulip
+  local and do not put unredacted flow bodies into agent messages.
 - Establish the healthy/checker baseline: request cadence, route/method,
   response code/length, latency, create/read behavior, retries and expected
   egress. Use the event's actual tick timing and published service interface.
